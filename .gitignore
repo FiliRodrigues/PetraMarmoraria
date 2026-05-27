@@ -1,0 +1,98 @@
+# Petra ERP — gitignore raiz (monorepo)
+
+# ============ Segredos / config local ============
+*.env
+.env
+.env.*
+!.env.example
+dart_defines.json
+dart_defines.local.json
+_apply_all.sql
+
+# ============ Flutter / Dart (petra_erp) ============
+petra_erp/.dart_tool/
+petra_erp/.flutter-plugins
+petra_erp/.flutter-plugins-dependencies
+petra_erp/.packages
+petra_erp/.pub-cache/
+petra_erp/.pub/
+petra_erp/build/
+petra_erp/.metadata
+petra_erp/pubspec.lock.bak
+
+# Generated
+petra_erp/lib/generated_plugin_registrant.dart
+petra_erp/**/.generated/
+
+# Coverage
+petra_erp/coverage/
+
+# Symbols
+petra_erp/app.*.symbols
+petra_erp/app.*.map.json
+
+# ============ Android ============
+petra_erp/android/.gradle/
+petra_erp/android/captures/
+petra_erp/android/gradlew
+petra_erp/android/gradlew.bat
+petra_erp/android/local.properties
+petra_erp/android/**/GeneratedPluginRegistrant.java
+petra_erp/android/key.properties
+petra_erp/android/**/*.keystore
+petra_erp/android/**/*.jks
+
+# ============ iOS / macOS ============
+petra_erp/ios/Pods/
+petra_erp/ios/.symlinks/
+petra_erp/ios/Flutter/App.framework
+petra_erp/ios/Flutter/Flutter.framework
+petra_erp/ios/Flutter/Flutter.podspec
+petra_erp/ios/Flutter/Generated.xcconfig
+petra_erp/ios/Flutter/ephemeral/
+petra_erp/ios/Flutter/app.flx
+petra_erp/ios/Flutter/app.zip
+petra_erp/ios/Flutter/flutter_assets/
+petra_erp/ios/Flutter/flutter_export_environment.sh
+petra_erp/ios/ServiceDefinitions.json
+petra_erp/ios/Runner/GeneratedPluginRegistrant.*
+petra_erp/macos/Flutter/GeneratedPluginRegistrant.swift
+petra_erp/macos/Flutter/ephemeral/
+petra_erp/macos/Pods/
+
+# ============ Linux / Windows ============
+petra_erp/linux/flutter/ephemeral/
+petra_erp/linux/flutter/generated_plugin_registrant.*
+petra_erp/linux/flutter/generated_plugins.cmake
+petra_erp/windows/flutter/ephemeral/
+petra_erp/windows/flutter/generated_plugin_registrant.*
+petra_erp/windows/flutter/generated_plugins.cmake
+
+# ============ Web ============
+petra_erp/web/main.dart.js
+petra_erp/web/flutter_service_worker.js
+
+# ============ IDE ============
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.history/
+.svn/
+.atom/
+
+# ============ OS ============
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ============ Logs ============
+*.log
+*.pid
+
+# ============ Claude / harness ============
+skills/
+.claude/

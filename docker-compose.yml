@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  petra_erp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: petra_erp_web
+    ports:
+      - "8080:80"
+    restart: unless-stopped
