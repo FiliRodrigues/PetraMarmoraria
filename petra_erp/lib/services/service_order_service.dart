@@ -116,9 +116,9 @@ class ServiceOrderService {
           );
         }
         if (requiredRole != null) {
-          final empResponse = await _client.from('profiles').select('role').eq('id', employeeId).single();
-          final empRole = empResponse['role'] as String?;
-          if (empRole != requiredRole) {
+          final empResponse = await _client.from('profiles').select('roles').eq('id', employeeId).single();
+          final empRoles = (empResponse['roles'] as List?)?.map((e) => e.toString()).toList() ?? const [];
+          if (!empRoles.contains(requiredRole)) {
             throw Exception(
               'Funcionário inválido para "${OSStatus.labels[newStatus]}". É necessário um funcionário com cargo "$requiredRole".',
             );

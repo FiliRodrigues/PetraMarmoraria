@@ -83,8 +83,6 @@ class OSDetailScreen extends ConsumerWidget {
           data: (data) => Text('OS ${data.order.formattedNumber}'),
           orElse: () => const Text('Detalhes da OS'),
         ),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.white,
         actions: [
           detailDataAsync.maybeWhen(
             data: (data) => IconButton(
@@ -102,7 +100,7 @@ class OSDetailScreen extends ConsumerWidget {
           ),
         ],
       ),
-      backgroundColor: Colors.grey[100],
+      backgroundColor: AppColors.background,
       body: detailDataAsync.when(
         data: (data) {
           final order = data.order;
@@ -169,7 +167,6 @@ class OSDetailScreen extends ConsumerWidget {
                 id: '',
                 email: '',
                 name: '',
-                role: '',
                 createdAt: DateTime(1970, 1, 1),
               ),
             );
@@ -187,7 +184,6 @@ class OSDetailScreen extends ConsumerWidget {
                 id: '',
                 email: '',
                 name: '',
-                role: '',
                 createdAt: DateTime(1970, 1, 1),
               ),
             );
@@ -204,7 +200,7 @@ class OSDetailScreen extends ConsumerWidget {
                 // Summary Header Card
                 Card(
                   elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Container(
                     decoration: const BoxDecoration(
                       border: Border(
@@ -285,7 +281,7 @@ class OSDetailScreen extends ConsumerWidget {
                 _buildSectionHeader('DADOS DO CLIENTE', Icons.person),
                 Card(
                   elevation: 1,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
@@ -314,7 +310,7 @@ class OSDetailScreen extends ConsumerWidget {
                 _buildSectionHeader('ESPECIFICAÇÕES DO SERVIÇO', Icons.build),
                 Card(
                   elevation: 1,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
@@ -346,7 +342,7 @@ class OSDetailScreen extends ConsumerWidget {
                 _buildSectionHeader('MEDIÇÕES', Icons.straighten),
                 Card(
                   elevation: 1,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Padding(
                     padding: const EdgeInsets.all(12.0),
                     child: measurementRows.isEmpty
@@ -386,7 +382,7 @@ class OSDetailScreen extends ConsumerWidget {
                 _buildSectionHeader('DESENHO / ESBOÇO', Icons.image),
                 Card(
                   elevation: 1,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: order.drawingUrl != null && order.drawingUrl!.trim().isNotEmpty
@@ -445,7 +441,7 @@ class OSDetailScreen extends ConsumerWidget {
                 _buildSectionHeader('EQUIPE RESPONSÁVEL', Icons.people),
                 Card(
                   elevation: 1,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
@@ -471,7 +467,7 @@ class OSDetailScreen extends ConsumerWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.secondary,
                       foregroundColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     icon: const Icon(Icons.print),
                     label: const Text('Visualizar e Imprimir OS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),

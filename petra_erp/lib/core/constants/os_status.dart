@@ -29,6 +29,21 @@ class OSStatus {
     entrega: 'Entrega',
   };
 
+  /// Etapas comerciais (board "Pedidos").
+  static const List<String> pedidosStatuses = [
+    orcamento,
+    aprovado,
+    recebido,
+    esperandoMaterial,
+  ];
+
+  /// Etapas de produção (board "Produção").
+  static const List<String> producaoStatuses = [
+    corte,
+    montagem,
+    entrega,
+  ];
+
   static int indexOf(String status) => ordered.indexOf(status);
 
   static String? next(String status) {

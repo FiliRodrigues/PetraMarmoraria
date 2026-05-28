@@ -70,6 +70,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             },
           ),
           GoRoute(
+            path: '/orders',
+            builder: (context, state) => const HomeScreen(),
+          ),
+          GoRoute(
             path: '/orders/new',
             builder: (context, state) => const OSFormScreen(),
           ),
@@ -123,6 +127,10 @@ final routerProvider = Provider<GoRouter>((ref) {
               final id = state.pathParameters['id']!;
               return ProductFormScreen(id: id);
             },
+          ),
+          GoRoute(
+            path: '/reports',
+            builder: (context, state) => const ReportsScreen(),
           ),
           GoRoute(
             path: '/profile',

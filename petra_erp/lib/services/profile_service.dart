@@ -20,10 +20,11 @@ class ProfileService {
 
   Future<List<Profile>> getProfilesByRole(String role) async {
     try {
+      // `roles` is a text[] column, so match profiles whose array contains the role.
       final response = await _client
           .from('profiles')
           .select()
-          .eq('role', role)
+          .contains('roles', [role])
           .eq('active', true)
           .order('name', ascending: true);
       return (response as List).map((e) => Profile.fromMap(e)).toList();

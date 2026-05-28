@@ -99,7 +99,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
           id: widget.id!,
           email: _emailController.text.trim(),
           name: _nameController.text.trim(),
-          role: _selectedRole,
+          roles: [_selectedRole],
           phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
           active: _isActive,
           createdAt: DateTime.now(), // Ignored in update
@@ -119,6 +119,9 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
           password: _passwordController.text.trim(),
           data: {
             'name': _nameController.text.trim(),
+            // `roles` is the source of truth (text[]); keep `role` too in case
+            // the DB trigger that provisions the profile reads the singular key.
+            'roles': [_selectedRole],
             'role': _selectedRole,
             'phone': _phoneController.text.trim(),
           },

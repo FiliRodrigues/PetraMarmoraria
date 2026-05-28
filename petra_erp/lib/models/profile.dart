@@ -5,8 +5,13 @@ class Profile {
   final String id;
   final String email;
   final String name;
-  final String role;
+
+  /// Source of truth: the database column `roles` is a text array, so a
+  /// profile can hold multiple roles (e.g. ['admin', 'vendedor']).
+  final List<String> roles;
+
   final String? phone;
+  final String? avatarUrl;
   final bool active;
   final DateTime createdAt;
 
@@ -14,18 +19,33 @@ class Profile {
     required this.id,
     required this.email,
     required this.name,
-    required this.role,
+    this.roles = const [],
     this.phone,
+    this.avatarUrl,
     this.active = true,
     required this.createdAt,
   });
+
+  /// Convenience accessor used throughout the UI where a single label is
+  /// enough. Prefers 'admin' when present, otherwise the first role.
+  String get role {
+    if (roles.isEmpty) return '';
+    if (roles.any((r) => r.toLowerCase() == 'admin')) return 'admin';
+    return roles.first;
+  }
+
+  bool hasRole(String role) =>
+      roles.any((r) => r.toLowerCase() == role.toLowerCase());
+
+  bool get isAdmin => hasRole('admin');
 
   Profile copyWith({
     String? id,
     String? email,
     String? name,
-    String? role,
+    List<String>? roles,
     String? phone,
+    String? avatarUrl,
     bool? active,
     DateTime? createdAt,
   }) {
@@ -33,8 +53,9 @@ class Profile {
       id: id ?? this.id,
       email: email ?? this.email,
       name: name ?? this.name,
-      role: role ?? this.role,
+      roles: roles ?? this.roles,
       phone: phone ?? this.phone,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
       active: active ?? this.active,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -45,8 +66,9 @@ class Profile {
       'id': id,
       'email': email,
       'name': name,
-      'role': role,
+      'roles': roles,
       'phone': phone,
+      'avatar_url': avatarUrl,
       'active': active,
       'created_at': createdAt.toIso8601String(),
     };
@@ -57,13 +79,25 @@ class Profile {
       id: map['id'] as String,
       email: map['email'] as String? ?? '',
       name: map['name'] as String? ?? '',
-      role: map['role'] as String? ?? 'vendedor',
+      roles: _parseRoles(map['roles']),
       phone: map['phone'] as String?,
+      avatarUrl: map['avatar_url'] as String?,
       active: map['active'] as bool? ?? true,
       createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'] as String)
           : DateTime.now(),
     );
+  }
+
+  /// Accepts a Postgres text[] (decoded as List) or a single string, so the
+  /// model is resilient to either shape coming back from the API.
+  static List<String> _parseRoles(dynamic raw) {
+    if (raw == null) return const [];
+    if (raw is List) {
+      return raw.map((e) => e.toString()).where((e) => e.isNotEmpty).toList();
+    }
+    if (raw is String && raw.isNotEmpty) return [raw];
+    return const [];
   }
 
   @override
@@ -73,19 +107,29 @@ class Profile {
         other.id == id &&
         other.email == email &&
         other.name == name &&
-        other.role == role &&
+        listEquals(other.roles, roles) &&
         other.phone == phone &&
+        other.avatarUrl == avatarUrl &&
         other.active == active &&
         other.createdAt == createdAt;
   }
 
   @override
   int get hashCode {
-    return Object.hash(id, email, name, role, phone, active, createdAt);
+    return Object.hash(
+      id,
+      email,
+      name,
+      Object.hashAll(roles),
+      phone,
+      avatarUrl,
+      active,
+      createdAt,
+    );
   }
 
   @override
   String toString() {
-    return 'Profile(id: $id, email: $email, name: $name, role: $role, active: $active)';
+    return 'Profile(id: $id, email: $email, name: $name, roles: $roles, active: $active)';
   }
 }

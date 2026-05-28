@@ -11,4 +11,5 @@ export 'employees/employee_list_screen.dart';
 export 'employees/employee_form_screen.dart';
 export 'products/product_list_screen.dart';
 export 'products/product_form_screen.dart';
+export 'reports/reports_screen.dart';
 export 'profile/profile_screen.dart';

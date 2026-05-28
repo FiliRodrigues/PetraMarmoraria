@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -75,7 +76,7 @@ class FakeProfileService implements ProfileService {
     id: id,
     email: 'test@petramarmoraria.com',
     name: 'Admin Test',
-    role: 'admin',
+    roles: const ['admin'],
     createdAt: DateTime.now(),
   );
   @override
@@ -134,6 +135,10 @@ class MockAuthNotifier extends AuthNotifier {
 
 void main() {
   testWidgets('Dashboard Kanban screen smoke test', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
     final mockUser = User(
       id: 'mock-user-id',
       appMetadata: const {},
@@ -157,6 +162,6 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Painel Kanban de Produção'), findsOneWidget);
+    expect(find.text('Painel Kanban'), findsWidgets);
   });
 }

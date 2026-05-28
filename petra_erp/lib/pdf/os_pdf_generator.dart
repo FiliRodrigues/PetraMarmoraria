@@ -120,7 +120,6 @@ Future<Uint8List> generateServiceOrderPdf({
         id: '',
         email: '',
         name: '',
-        role: '',
         createdAt: DateTime(1970),
       ),
     );
@@ -138,7 +137,6 @@ Future<Uint8List> generateServiceOrderPdf({
         id: '',
         email: '',
         name: '',
-        role: '',
         createdAt: DateTime(1970),
       ),
     );

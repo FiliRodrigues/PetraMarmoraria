@@ -10,22 +10,26 @@ import 'kanban_column.dart';
 class KanbanBoard extends StatelessWidget {
   final List<ServiceOrder> orders;
 
+  /// Etapas exibidas neste board. Default: todas, na ordem do fluxo.
+  final List<String> statuses;
+
   const KanbanBoard({
     super.key,
     required this.orders,
+    this.statuses = OSStatus.ordered,
   });
 
   Map<String, List<ServiceOrder>> _groupOrdersByStatus() {
     final Map<String, List<ServiceOrder>> grouped = {
-      for (var status in OSStatus.ordered) status: [],
+      for (var status in statuses) status: [],
     };
-    
+
     for (var order in orders) {
       if (grouped.containsKey(order.status)) {
         grouped[order.status]!.add(order);
       }
     }
-    
+
     return grouped;
   }
 
@@ -41,7 +45,7 @@ class KanbanBoard extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: OSStatus.ordered.map((status) {
+          children: statuses.map((status) {
             return KanbanColumn(
               status: status,
               orders: groupedOrders[status] ?? [],
@@ -53,7 +57,7 @@ class KanbanBoard extends StatelessWidget {
 
     // Scrollable TabBar layout for mobile/tablet screens
     return DefaultTabController(
-      length: OSStatus.ordered.length,
+      length: statuses.length,
       child: Column(
         children: [
           TabBar(
@@ -62,7 +66,7 @@ class KanbanBoard extends StatelessWidget {
             labelColor: AppColors.primary,
             indicatorColor: AppColors.secondary,
             unselectedLabelColor: AppColors.grey,
-            tabs: OSStatus.ordered.map((status) {
+            tabs: statuses.map((status) {
               final label = OSStatus.labels[status] ?? status;
               final count = groupedOrders[status]?.length ?? 0;
               return Tab(
@@ -92,7 +96,7 @@ class KanbanBoard extends StatelessWidget {
           ),
           Expanded(
             child: TabBarView(
-              children: OSStatus.ordered.map((status) {
+              children: statuses.map((status) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: KanbanColumn(
