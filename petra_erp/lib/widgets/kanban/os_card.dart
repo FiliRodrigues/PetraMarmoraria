@@ -56,11 +56,8 @@ class _OSCardState extends ConsumerState<OSCard> {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          border: Border(
-            left:   BorderSide(color: _staleColor, width: 3),
-            top:    BorderSide(color: _hovered ? AppColors.accent.withValues(alpha: 0.35) : AppColors.border),
-            right:  BorderSide(color: _hovered ? AppColors.accent.withValues(alpha: 0.35) : AppColors.border),
-            bottom: BorderSide(color: _hovered ? AppColors.accent.withValues(alpha: 0.35) : AppColors.border),
+          border: Border.all(
+            color: _hovered ? AppColors.accent.withValues(alpha: 0.35) : AppColors.border,
           ),
           boxShadow: [
             BoxShadow(
@@ -70,9 +67,17 @@ class _OSCardState extends ConsumerState<OSCard> {
             ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(11),
-          child: Column(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Faixa de staleness (verde/âmbar/vermelho) na borda esquerda.
+              Container(width: 3, color: _staleColor),
+              Expanded(
+                child: Padding(
+        padding: const EdgeInsets.all(11),
+        child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Row 1: OS# + badge ────────────────────────────────────────
@@ -153,6 +158,10 @@ class _OSCardState extends ConsumerState<OSCard> {
                     ),
                   ),
                 ],
+              ),
+            ],
+                  ),
+                ),
               ),
             ],
           ),
