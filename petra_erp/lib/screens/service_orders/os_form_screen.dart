@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/constants/os_status.dart';
 import '../../core/theme/app_colors.dart';
@@ -11,6 +13,8 @@ import '../../models/models.dart';
 import '../../providers/customer_provider.dart';
 import '../../providers/os_provider.dart';
 import '../../providers/product_provider.dart';
+import '../../providers/providers.dart';
+import '../../services/storage_service.dart';
 import '../../widgets/widgets.dart';
 
 /// Screen to create or edit a Service Order (Ordem de Serviço).
@@ -36,7 +40,11 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
   final _edgeTypeController = TextEditingController();
   final _valueController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _notesController = TextEditingController();
   final _drawingUrlController = TextEditingController();
+
+  DateTime? _scheduledDate;
+  final _dateFormat = DateFormat('dd/MM/yyyy');
 
   Customer? _selectedCustomer;
   List<Map<String, String>> _measurements = [];
@@ -45,6 +53,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
   String? _errorMessage;
   String _currentStatus = OSStatus.orcamento;
   int _queuePosition = 1;
+  final String _pendingOrderId = const Uuid().v4();
 
   @override
   void initState() {
@@ -86,51 +95,61 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
     );
   }
 
-  void _loadOrderData() {
+  void _loadOrderData() async {
     final ordersState = ref.read(osProvider);
     ordersState.maybeWhen(
       data: (list) {
         try {
           final order = list.firstWhere((o) => o.id == widget.id);
-          _materialController.text = order.material ?? '';
-          _edgeTypeController.text = order.edgeType ?? '';
-          _valueController.text = order.totalValue.toStringAsFixed(2);
-          _descriptionController.text = order.description;
-          _drawingUrlController.text = order.drawingUrl ?? '';
-          _currentStatus = order.status;
-          _queuePosition = order.queuePosition;
-
-          // Customer
-          _preLinkCustomer(order.customerId);
-
-          // Parse measurements
-          final List<Map<String, String>> parsed = [];
-          final measurements = order.measurements;
-          if (measurements.containsKey('items') && measurements['items'] is List) {
-            final items = measurements['items'] as List;
-            for (final item in items) {
-              if (item is Map) {
-                parsed.add({
-                  'width': (item['width'] ?? item['largura'] ?? '').toString(),
-                  'height': (item['height'] ?? item['altura'] ?? '').toString(),
-                  'thickness': (item['thickness'] ?? item['espessura'] ?? '').toString(),
-                  'format': (item['format'] ?? item['formato'] ?? '').toString(),
-                  'details': (item['details'] ?? item['detalhes'] ?? '').toString(),
-                });
-              }
-            }
-          }
-          setState(() {
-            _measurements = parsed.isEmpty ? [{'width': '', 'height': '', 'thickness': '', 'format': '', 'details': ''}] : parsed;
-          });
-        } catch (_) {
-          _errorMessage = 'Ordem de serviço não encontrada no cache.';
-        }
+          _populateForm(order);
+          return;
+        } catch (_) {}
       },
-      orElse: () {
-        _errorMessage = 'Erro: Lista de OS não carregada.';
-      },
+      orElse: () {},
     );
+    // Fallback: fetch directly from API
+    try {
+      final service = ref.read(serviceOrderServiceProvider);
+      final order = await service.getServiceOrderById(widget.id!);
+      _populateForm(order);
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Erro ao carregar OS: $e';
+      });
+    }
+  }
+
+  void _populateForm(ServiceOrder order) {
+    _materialController.text = order.material ?? '';
+    _edgeTypeController.text = order.edgeType ?? '';
+    _valueController.text = order.totalValue.toStringAsFixed(2);
+    _descriptionController.text = order.description;
+    _notesController.text = order.notes ?? '';
+    _drawingUrlController.text = order.drawingUrl ?? '';
+    _scheduledDate = order.scheduledDate;
+    _currentStatus = order.status;
+    _queuePosition = order.queuePosition;
+    _preLinkCustomer(order.customerId);
+    // Parse measurements
+    final List<Map<String, String>> parsed = [];
+    final measurements = order.measurements;
+    if (measurements.containsKey('items') && measurements['items'] is List) {
+      final items = measurements['items'] as List;
+      for (final item in items) {
+        if (item is Map) {
+          parsed.add({
+            'width': (item['width'] ?? item['largura'] ?? '').toString(),
+            'height': (item['height'] ?? item['altura'] ?? '').toString(),
+            'thickness': (item['thickness'] ?? item['espessura'] ?? '').toString(),
+            'format': (item['format'] ?? item['formato'] ?? '').toString(),
+            'details': (item['details'] ?? item['detalhes'] ?? '').toString(),
+          });
+        }
+      }
+    }
+    setState(() {
+      _measurements = parsed.isEmpty ? [{'width': '', 'height': '', 'thickness': '', 'format': '', 'details': ''}] : parsed;
+    });
   }
 
   @override
@@ -140,6 +159,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
     _edgeTypeController.dispose();
     _valueController.dispose();
     _descriptionController.dispose();
+    _notesController.dispose();
     _drawingUrlController.dispose();
     super.dispose();
   }
@@ -200,8 +220,21 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
           : orders.map((o) => o.queuePosition).reduce((a, b) => a > b ? a : b) + 1;
     }
 
+    // Validate measurements
+    final validMeasurements = _measurements.where((m) =>
+        (m['width'] ?? '').trim().isNotEmpty &&
+        (m['height'] ?? '').trim().isNotEmpty &&
+        (m['thickness'] ?? '').trim().isNotEmpty).toList();
+    if (validMeasurements.isEmpty) {
+      setState(() {
+        _errorMessage = 'Adicione ao menos uma medição válida (preencha largura, altura e espessura).';
+      });
+      setState(() { _isLoading = false; });
+      return;
+    }
+
     final order = ServiceOrder(
-      id: _isEditing ? widget.id! : const Uuid().v4(),
+      id: _isEditing ? widget.id! : _pendingOrderId,
       displayNumber: 0, // Auto-generated by Postgres serial column
       customerId: _selectedCustomer!.id,
       customerName: _selectedCustomer!.name,
@@ -210,6 +243,8 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
       status: _currentStatus,
       queuePosition: finalQueuePosition,
       description: _descriptionController.text.trim(),
+      notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+      scheduledDate: _scheduledDate,
       totalValue: val,
       measurements: measurementsMap,
       drawingUrl: _drawingUrlController.text.trim().isEmpty ? null : _drawingUrlController.text.trim(),
@@ -327,31 +362,31 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                         Expanded(
                           child: productsState.when(
                             data: (products) {
-                              return DropdownButtonFormField<String>(
-                                value: products.any((p) => p.name == _materialController.text) 
-                                    ? _materialController.text 
-                                    : null,
-                                decoration: InputDecoration(
-                                  labelText: 'Material / Pedra',
-                                  prefixIcon: Icon(LucideIcons.layers, size: 16),
-                                ),
-                                hint: const Text('Selecione do catálogo'),
-                                items: products.map((p) {
-                                  return DropdownMenuItem<String>(
-                                    value: p.name,
-                                    child: Text(p.name),
+                              return Autocomplete<Product>(
+                                initialValue: TextEditingValue(text: _materialController.text),
+                                optionsBuilder: (textEditingValue) {
+                                  if (textEditingValue.text.isEmpty) return products;
+                                  return products.where((p) =>
+                                      p.name.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+                                },
+                                displayStringForOption: (p) => p.name,
+                                onSelected: (Product selection) {
+                                  setState(() {
+                                    _materialController.text = selection.name;
+                                    _valueController.text = selection.unitPrice.toStringAsFixed(2);
+                                  });
+                                },
+                                fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                                  return TextFormField(
+                                    controller: controller,
+                                    focusNode: focusNode,
+                                    onChanged: (value) => _materialController.text = value,
+                                    decoration: InputDecoration(
+                                      labelText: 'Material / Pedra',
+                                      prefixIcon: const Icon(LucideIcons.layers, size: 16),
+                                      hintText: 'Digite para buscar...',
+                                    ),
                                   );
-                                }).toList(),
-                                onChanged: (val) {
-                                  if (val != null) {
-                                    setState(() {
-                                      _materialController.text = val;
-                                      
-                                      // Suggest pricing based on material base price
-                                      final prod = products.firstWhere((p) => p.name == val);
-                                      _valueController.text = prod.unitPrice.toStringAsFixed(2);
-                                    });
-                                  }
                                 },
                               );
                             },
@@ -393,9 +428,47 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                       ),
                       validator: (val) => Validators.validateRequired(val, 'Valor da OS'),
                     ),
+                    const SizedBox(height: 16.0),
+
+                    // 4. Prazo
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _scheduledDate ?? DateTime.now().add(const Duration(days: 7)),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                          locale: const Locale('pt', 'BR'),
+                        );
+                        if (picked != null) {
+                          setState(() => _scheduledDate = picked);
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: 'Prazo de Entrega',
+                          prefixIcon: Icon(LucideIcons.calendar, size: 16),
+                          suffixIcon: _scheduledDate != null
+                              ? IconButton(
+                                  icon: const Icon(LucideIcons.x, size: 16),
+                                  onPressed: () => setState(() => _scheduledDate = null),
+                                )
+                              : null,
+                        ),
+                        child: Text(
+                          _scheduledDate != null
+                              ? _dateFormat.format(_scheduledDate!)
+                              : 'Selecionar data de entrega...',
+                          style: AppTheme.jakarta(
+                            fontSize: 14,
+                            color: _scheduledDate != null ? AppColors.textPrimary : AppColors.textMuted,
+                          ),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 24.0),
 
-                    // 4. Measurements dynamic grid section
+                    // 5. Measurements dynamic grid section
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -489,7 +562,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                     ),
                     const SizedBox(height: 16.0),
 
-                    // 5. Drawing Sketch Attachment URL mock input
+                    // 6. Drawing Sketch Attachment URL mock input
                     Row(
                       children: [
                         Expanded(
@@ -504,15 +577,25 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                         ),
                         const SizedBox(width: 12.0),
                         ElevatedButton.icon(
-                          onPressed: () {
-                            // Mock a file picker select that updates with a template marble blueprint URL
-                            setState(() {
-                              _drawingUrlController.text = 
-                                  'https://images.unsplash.com/photo-1588854337236-6889d631faa8?q=80&w=600';
-                            });
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Desenho anexado (simulado)!')),
-                            );
+                          onPressed: () async {
+                            try {
+                              final storageService = StorageService(Supabase.instance.client);
+                              final imagePath = await storageService.pickImage();
+                              if (imagePath != null) {
+                                final orderIdForUpload = widget.id ?? _pendingOrderId;
+                                final url = await storageService.uploadDrawing(imagePath, orderIdForUpload);
+                                setState(() {
+                                  _drawingUrlController.text = url;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Desenho anexado com sucesso!')),
+                                );
+                              }
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Erro ao anexar desenho: $e')),
+                              );
+                            }
                           },
                           icon: const Icon(LucideIcons.upload, size: 16),
                           label: const Text('Anexar'),
@@ -521,13 +604,26 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                     ),
                     const SizedBox(height: 24.0),
 
-                    // 6. Description / Notes
+                    // 7. Description
                     TextFormField(
                       controller: _descriptionController,
                       maxLines: 4,
                       decoration: InputDecoration(
-                        labelText: 'Descrição Geral do Serviço / Observações da Produção',
+                        labelText: 'Descrição Geral do Serviço',
                         prefixIcon: Icon(LucideIcons.fileText, size: 16),
+                        alignLabelWithHint: true,
+                      ),
+                    ),
+                    const SizedBox(height: 16.0),
+
+                    // 8. Observações Internas
+                    TextFormField(
+                      controller: _notesController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        labelText: 'Observações Internas',
+                        prefixIcon: Icon(LucideIcons.edit, size: 16),
+                        hintText: 'Anotações para a produção...',
                         alignLabelWithHint: true,
                       ),
                     ),

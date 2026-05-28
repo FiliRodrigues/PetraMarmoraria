@@ -24,18 +24,19 @@ class DelayBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = _color();
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+        border: Border.all(color: color.withOpacity(0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(LucideIcons.clock, size: 13, color: color),
-          const SizedBox(width: 4),
+          Icon(LucideIcons.clock, size: 12, color: color),
+          const SizedBox(width: 5),
           Text(_text(),
-            style: AppTheme.jakarta(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+            style: AppTheme.jakarta(fontSize: 11, fontWeight: FontWeight.w500, color: color)),
         ],
       ),
     );

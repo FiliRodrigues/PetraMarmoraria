@@ -11,7 +11,27 @@ class CustomerService {
       final response = await _client
           .from('customers')
           .select()
+          .limit(500)
           .order('name', ascending: true);
+      return (response as List).map((e) => Customer.fromMap(e)).toList();
+    } catch (e) {
+      throw Exception('Falha ao buscar clientes: ${e.toString()}');
+    }
+  }
+
+  Future<List<Customer>> getCustomersPaged({
+    required int offset,
+    int pageSize = 30,
+    String? search,
+  }) async {
+    try {
+      var query = _client.from('customers').select();
+      if (search != null && search.isNotEmpty) {
+        query = query.or('name.ilike.%$search%,phone.ilike.%$search%,cpf_cnpj.ilike.%$search%');
+      }
+      final response = await query
+          .order('name', ascending: true)
+          .range(offset, offset + pageSize - 1);
       return (response as List).map((e) => Customer.fromMap(e)).toList();
     } catch (e) {
       throw Exception('Falha ao buscar clientes: ${e.toString()}');
@@ -50,6 +70,13 @@ class CustomerService {
     } catch (e) {
       throw Exception('Falha ao atualizar cliente: ${e.toString()}');
     }
+  }
+
+  Stream<List<Customer>> streamCustomers() {
+    return _client
+        .from('customers')
+        .stream(primaryKey: ['id'])
+        .map((events) => events.map((e) => Customer.fromMap(e)).toList());
   }
 
   Future<void> deleteCustomer(String id) async {

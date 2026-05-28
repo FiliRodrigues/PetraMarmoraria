@@ -7,7 +7,9 @@ import '../../providers/providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../widgets/common/status_badge.dart';
-import 'os_print_screen.dart';
+import '../../widgets/common/confirm_dialog.dart';
+import '../../core/constants/os_status.dart';
+import 'package:go_router/go_router.dart';
 
 class OSDetailData {
   final ServiceOrder order;
@@ -16,12 +18,15 @@ class OSDetailData {
   final List<StatusHistory> history;
   final List<Profile> profiles;
 
+  final List<String> partialErrors;
+
   OSDetailData({
     required this.order,
     this.customer,
     this.assignments = const [],
     this.history = const [],
     this.profiles = const [],
+    this.partialErrors = const [],
   });
 }
 
@@ -30,21 +35,27 @@ final osDetailDataProvider = FutureProvider.family<OSDetailData, String>((ref, i
   final customerService = ref.watch(customerServiceProvider);
   final profileService = ref.watch(profileServiceProvider);
 
+  ref.watch(employeeProvider);
+  ref.watch(customerProvider);
+  ref.watch(osProvider);
+
   final order = await serviceOrderService.getServiceOrderById(id);
 
+  final List<String> partialErrors = [];
+
   Customer? customer;
-  try { customer = await customerService.getCustomerById(order.customerId); } catch (_) {}
+  try { customer = await customerService.getCustomerById(order.customerId); } catch (e) { debugPrint('Erro ao carregar cliente: $e'); partialErrors.add('Erro ao carregar cliente'); }
 
   List<OrderAssignment> assignments = [];
-  try { assignments = await serviceOrderService.getAssignments(id); } catch (_) {}
+  try { assignments = await serviceOrderService.getAssignments(id); } catch (e) { debugPrint('Erro ao carregar atribuições: $e'); partialErrors.add('Erro ao carregar atribuições'); }
 
   List<StatusHistory> history = [];
-  try { history = await serviceOrderService.getStatusHistory(id); } catch (_) {}
+  try { history = await serviceOrderService.getStatusHistory(id); } catch (e) { debugPrint('Erro ao carregar histórico: $e'); partialErrors.add('Erro ao carregar histórico'); }
 
   List<Profile> profiles = [];
-  try { profiles = await profileService.getProfiles(); } catch (_) {}
+  try { profiles = await profileService.getProfiles(); } catch (e) { debugPrint('Erro ao carregar perfis: $e'); partialErrors.add('Erro ao carregar perfis'); }
 
-  return OSDetailData(order: order, customer: customer, assignments: assignments, history: history, profiles: profiles);
+  return OSDetailData(order: order, customer: customer, assignments: assignments, history: history, profiles: profiles, partialErrors: partialErrors);
 });
 
 class OSDetailScreen extends ConsumerWidget {
@@ -62,12 +73,83 @@ class OSDetailScreen extends ConsumerWidget {
         title: Text('Detalhe da OS'),
         actions: [
           detailDataAsync.maybeWhen(
-            data: (data) => IconButton(
-              icon: const Icon(LucideIcons.printer, size: 18),
-              tooltip: 'Imprimir OS',
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => OSPrintScreen(id: id)),
-              ),
+            data: (data) => Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(LucideIcons.printer, size: 18),
+                  tooltip: 'Imprimir OS',
+                  onPressed: () => context.push('/orders/$id/print'),
+                ),
+                IconButton(
+                  icon: const Icon(LucideIcons.pencil, size: 18),
+                  tooltip: 'Editar OS',
+                  onPressed: () => context.push('/orders/$id/edit'),
+                ),
+                Builder(builder: (context) {
+                  final currentStatus = data.order.status;
+                  final canAdvance = OSStatus.next(currentStatus) != null;
+                  final canGoBack = OSStatus.previous(currentStatus) != null;
+                  return PopupMenuButton<String>(
+                    icon: const Icon(LucideIcons.arrowRightLeft, size: 18),
+                    tooltip: 'Mover etapa',
+                    onSelected: (newStatus) async {
+                      final profile = ref.read(currentProfileProvider).valueOrNull;
+                      if (profile == null) return;
+                      final confirm = await ConfirmDialog.show(
+                        context,
+                        title: 'Mover OS #${data.order.formattedNumber}',
+                        content: 'Deseja mover para "${OSStatus.labels[newStatus]}"?',
+                      );
+                      if (confirm) {
+                        try {
+                          await ref.read(osProvider.notifier).moveOrder(
+                            orderId: data.order.id,
+                            newStatus: newStatus,
+                            changedById: profile.id,
+                          );
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('OS movida para ${OSStatus.labels[newStatus]}')),
+                            );
+                            ref.invalidate(osDetailDataProvider(id));
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.error),
+                            );
+                          }
+                        }
+                      }
+                    },
+                    itemBuilder: (context) {
+                      final items = <PopupMenuItem<String>>[];
+                      if (canGoBack) {
+                        items.add(PopupMenuItem(
+                          value: OSStatus.previous(currentStatus),
+                          child: Row(children: [
+                            Icon(LucideIcons.arrowLeft, size: 16, color: AppColors.textSecondary),
+                            SizedBox(width: 8),
+                            Text('Voltar: ${OSStatus.labels[OSStatus.previous(currentStatus)!]}'),
+                          ]),
+                        ));
+                      }
+                      if (canAdvance) {
+                        items.add(PopupMenuItem(
+                          value: OSStatus.next(currentStatus),
+                          child: Row(children: [
+                            Icon(LucideIcons.arrowRight, size: 16, color: AppColors.accent),
+                            SizedBox(width: 8),
+                            Text('Avançar: ${OSStatus.labels[OSStatus.next(currentStatus)!]}'),
+                          ]),
+                        ));
+                      }
+                      return items;
+                    },
+                  );
+                }),
+              ],
             ),
             orElse: () => const SizedBox.shrink(),
           ),
@@ -167,11 +249,37 @@ class _Body extends StatelessWidget {
       if (seller.name.isNotEmpty) vendedor = seller.name;
     }
 
+    final partialErrors = data.partialErrors;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (partialErrors.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Icon(LucideIcons.alertTriangle, size: 16, color: AppColors.warning),
+                    const SizedBox(width: 8),
+                    Text('Alguns dados não puderam ser carregados:',
+                      style: AppTheme.jakarta(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.warning)),
+                  ]),
+                  const SizedBox(height: 4),
+                  ...partialErrors.map((e) => Text('• $e',
+                    style: AppTheme.jakarta(fontSize: 11, color: AppColors.textSecondary))),
+                ],
+              ),
+            ),
           // ── Header card ──────────────────────────────────────────────────
           _Card(
             child: Column(
@@ -245,6 +353,13 @@ class _Body extends StatelessWidget {
                   order.description.isNotEmpty ? order.description : 'Nenhuma observação cadastrada.',
                   style: AppTheme.jakarta(fontSize: 13.5),
                 ),
+                if (order.notes != null && order.notes!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text('Observações Internas', style: AppTheme.jakarta(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.w700).copyWith(letterSpacing: 0.3)),
+                  const SizedBox(height: 4),
+                  Text(order.notes!,
+                    style: AppTheme.jakarta(fontSize: 13.5, color: AppColors.textSecondary)),
+                ],
               ],
             ),
           ),
@@ -328,9 +443,7 @@ class _Body extends StatelessWidget {
             child: ElevatedButton.icon(
               icon: const Icon(LucideIcons.printer, size: 16),
               label: const Text('Visualizar e Imprimir OS'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => OSPrintScreen(id: osId)),
-              ),
+              onPressed: () => context.push('/orders/$osId/print'),
             ),
           ),
           const SizedBox(height: 40),

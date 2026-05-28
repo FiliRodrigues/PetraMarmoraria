@@ -25,6 +25,7 @@ Future<Uint8List> generateServiceOrderPdf({
   List<OrderAssignment> assignments = const [],
   List<StatusHistory> history = const [],
   List<Profile> profiles = const [],
+  CompanyInfo? companyInfo,
 }) async {
   final pdf = pw.Document();
 
@@ -173,8 +174,8 @@ Future<Uint8List> generateServiceOrderPdf({
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('PETRA MARMORARIA', style: titleStyle),
-                    pw.Text('Mármores, Granitos e Pedras Decorativas', style: subtitleStyle),
+                    pw.Text(companyInfo?.name.toUpperCase() ?? 'PETRA MARMORARIA', style: titleStyle),
+                    pw.Text(companyInfo?.address ?? 'Mármores, Granitos e Pedras Decorativas', style: subtitleStyle),
                   ],
                 ),
                 pw.Column(
@@ -206,7 +207,7 @@ Future<Uint8List> generateServiceOrderPdf({
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text(
-                  'Petra ERP - Documento gerado em ${dateFormat.format(DateTime.now())}',
+                  '${companyInfo?.name ?? 'Petra ERP'} - Documento gerado em ${dateFormat.format(DateTime.now())}',
                   style: pw.TextStyle(font: fontRegular, fontSize: 7, color: greyColor),
                 ),
                 pw.Text(

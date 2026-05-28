@@ -1,5 +1,4 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:uuid/uuid.dart';
 import '../models/profile.dart';
 
 class ProfileService {
@@ -12,6 +11,7 @@ class ProfileService {
       final response = await _client
           .from('profiles')
           .select()
+          .limit(500)
           .order('name', ascending: true);
       return (response as List).map((e) => Profile.fromMap(e)).toList();
     } catch (e) {
@@ -21,15 +21,31 @@ class ProfileService {
 
   Future<List<Profile>> getProfilesByRole(String role) async {
     try {
-      final response = await _client
-          .from('profiles')
-          .select()
-          .contains('roles', [role])
-          .eq('active', true)
-          .order('name', ascending: true);
+      final response = await _client.rpc('get_profiles_by_role', params: {
+        'p_role': role,
+      });
       return (response as List).map((e) => Profile.fromMap(e)).toList();
     } catch (e) {
       throw Exception('Falha ao buscar funcionários por cargo: ${e.toString()}');
+    }
+  }
+
+  Future<List<Profile>> getProfilesPaged({
+    required int offset,
+    int pageSize = 30,
+    String? search,
+  }) async {
+    try {
+      var query = _client.from('profiles').select();
+      if (search != null && search.isNotEmpty) {
+        query = query.or('name.ilike.%$search%,email.ilike.%$search%');
+      }
+      final response = await query
+          .order('name', ascending: true)
+          .range(offset, offset + pageSize - 1);
+      return (response as List).map((e) => Profile.fromMap(e)).toList();
+    } catch (e) {
+      throw Exception('Falha ao buscar funcionários: ${e.toString()}');
     }
   }
 
@@ -48,18 +64,12 @@ class ProfileService {
     String? phone,
   }) async {
     try {
-      final id = const Uuid().v4();
-      final now = DateTime.now().toIso8601String();
-      final data = {
-        'id': id,
-        'name': name,
-        'roles': roles,
-        'phone': phone,
-        'active': true,
-        'created_at': now,
-      };
-      final response = await _client.from('profiles').insert(data).select().single();
-      return Profile.fromMap(response);
+      final id = await _client.rpc('admin_create_employee', params: {
+        'p_name': name,
+        'p_roles': roles,
+        'p_phone': phone,
+      });
+      return await getProfileById(id as String);
     } catch (e) {
       throw Exception('Falha ao criar funcionário: ${e.toString()}');
     }
@@ -67,22 +77,32 @@ class ProfileService {
 
   Future<Profile> updateProfile(Profile profile) async {
     try {
-      final data = profile.toMap()..remove('created_at')..remove('email');
-      final response = await _client
-          .from('profiles')
-          .update(data)
-          .eq('id', profile.id)
-          .select()
-          .single();
-      return Profile.fromMap(response);
+      await _client.rpc('admin_update_employee', params: {
+        'p_id': profile.id,
+        'p_name': profile.name,
+        'p_roles': profile.roles,
+        'p_phone': profile.phone,
+        'p_active': profile.active,
+      });
+      return profile;
     } catch (e) {
       throw Exception('Falha ao atualizar funcionário: ${e.toString()}');
     }
   }
 
+  Stream<List<Profile>> streamProfiles() {
+    return _client
+        .from('profiles')
+        .stream(primaryKey: ['id'])
+        .map((events) => events.map((e) => Profile.fromMap(e)).toList());
+  }
+
   Future<void> setProfileActiveStatus(String id, bool active) async {
     try {
-      await _client.from('profiles').update({'active': active}).eq('id', id);
+      await _client.rpc('admin_set_profile_active_status', params: {
+        'p_id': id,
+        'p_active': active,
+      });
     } catch (e) {
       throw Exception('Falha ao alterar status do funcionário: ${e.toString()}');
     }

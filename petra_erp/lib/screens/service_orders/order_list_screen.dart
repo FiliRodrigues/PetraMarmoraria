@@ -47,13 +47,36 @@ class _OrderListScreenState extends ConsumerState<OrderListScreen> {
     return List.generate(7, (i) => y - 3 + i);
   }
 
+  final _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(() => setState(() => _searchText = _searchController.text));
+    _searchController.addListener(_onSearchChanged);
+    _scrollController.addListener(_onScroll);
     final now = DateTime.now();
     _filterMonth = now.month;
     _filterYear = now.year;
+  }
+
+  void _onSearchChanged() {
+    setState(() => _searchText = _searchController.text);
+    _applyServerFilters();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      ref.read(osPagedProvider.notifier).loadMore();
+    }
+  }
+
+  void _applyServerFilters() {
+    ref.read(osPagedProvider.notifier).refreshWithFilters(
+      search: _searchText.isEmpty ? null : _searchText,
+      status: _filterStatus,
+      month: _filterMonth,
+      year: _filterYear,
+    );
   }
 
   String _formatMonth(int? m) {
@@ -64,7 +87,10 @@ class _OrderListScreenState extends ConsumerState<OrderListScreen> {
 
   @override
   void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _scrollController.removeListener(_onScroll);
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -97,7 +123,9 @@ class _OrderListScreenState extends ConsumerState<OrderListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ordersAsync = ref.watch(osProvider);
+    final paged = ref.watch(osPagedProvider);
+    final rows = _sorted(paged.items);
+    final total = rows.fold<double>(0, (s, o) => s + o.totalValue);
 
     return Scaffold(
       appBar: AppBar(
@@ -110,165 +138,169 @@ class _OrderListScreenState extends ConsumerState<OrderListScreen> {
           ),
         ],
       ),
-      body: ordersAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(LucideIcons.alertCircle, size: 48, color: AppColors.error),
-              const SizedBox(height: 16),
-              Text('Erro: $err', style: AppTheme.jakarta(color: AppColors.textMuted)),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => ref.invalidate(osProvider),
-                child: const Text('Tentar Novamente'),
-              ),
-            ],
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Filtros
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                SizedBox(
+                  width: 320,
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: const InputDecoration(
+                      hintText: 'Buscar OS#, cliente, material...',
+                      prefixIcon: Icon(LucideIcons.search, size: 16),
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+                DropdownButton<String?>(
+                  value: _filterStatus,
+                  hint: Text('Todas etapas', style: AppTheme.jakarta(fontSize: 13)),
+                  underline: const SizedBox(),
+                  items: [
+                    DropdownMenuItem(value: null, child: Text('Todas etapas', style: AppTheme.jakarta(fontSize: 13))),
+                    ...OSStatus.ordered.map((s) => DropdownMenuItem(
+                      value: s,
+                      child: Text(OSStatus.labels[s] ?? s, style: AppTheme.jakarta(fontSize: 13)),
+                    )),
+                  ],
+                  onChanged: (v) {
+                    setState(() => _filterStatus = v);
+                    _applyServerFilters();
+                  },
+                ),
+                DropdownButton<int?>(
+                  value: _filterMonth,
+                  hint: const Text('Mês', style: TextStyle(fontSize: 13)),
+                  underline: const SizedBox(),
+                  items: _months.map((m) => DropdownMenuItem(
+                    value: m,
+                    child: Text(_formatMonth(m), style: AppTheme.jakarta(fontSize: 13)),
+                  )).toList(),
+                  onChanged: (v) {
+                    setState(() => _filterMonth = v);
+                    _applyServerFilters();
+                  },
+                ),
+                DropdownButton<int?>(
+                  value: _filterYear,
+                  hint: const Text('Ano', style: TextStyle(fontSize: 13)),
+                  underline: const SizedBox(),
+                  items: _years.map((y) => DropdownMenuItem(
+                    value: y,
+                    child: Text('$y', style: AppTheme.jakarta(fontSize: 13)),
+                  )).toList(),
+                  onChanged: (v) {
+                    setState(() => _filterYear = v);
+                    _applyServerFilters();
+                  },
+                ),
+                if (_filterStatus != null || _searchText.isNotEmpty)
+                  TextButton.icon(
+                    icon: const Icon(LucideIcons.x, size: 14),
+                    label: const Text('Limpar'),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() {
+                        _filterStatus = null;
+                        _searchText = '';
+                      });
+                      _applyServerFilters();
+                    },
+                  ),
+                const Spacer(),
+                if (paged.isLoadingMore)
+                  const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                else
+                  Text(
+                    '${rows.length}${paged.hasMore ? '+' : ''} OS  •  ${Formatters.formatCurrency(total)}',
+                    style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted),
+                  ),
+              ],
+            ),
           ),
-        ),
-        data: (orders) {
-          var filtered = orders;
 
-          if (_filterMonth != null && _filterYear != null) {
-            filtered = filtered.where((o) {
-              return o.createdAt.year == _filterYear && o.createdAt.month == _filterMonth;
-            }).toList();
-          }
-
-          if (_searchText.isNotEmpty) {
-            final q = _searchText.toLowerCase();
-            filtered = filtered.where((o) =>
-              o.formattedNumber.toLowerCase().contains(q) ||
-              (o.customerName ?? '').toLowerCase().contains(q) ||
-              (o.material ?? '').toLowerCase().contains(q) ||
-              o.statusLabel.toLowerCase().contains(q),
-            ).toList();
-          }
-          if (_filterStatus != null) {
-            filtered = filtered.where((o) => o.status == _filterStatus).toList();
-          }
-          filtered = _sorted(filtered);
-
-          final total = filtered.fold<double>(0, (s, o) => s + o.totalValue);
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Filtros
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+          if (paged.error != null && paged.items.isEmpty)
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SizedBox(
-                      width: 320,
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: const InputDecoration(
-                          hintText: 'Buscar OS#, cliente, material...',
-                          prefixIcon: Icon(LucideIcons.search, size: 16),
-                          isDense: true,
-                          contentPadding: EdgeInsets.symmetric(vertical: 10),
-                        ),
-                      ),
-                    ),
-                    DropdownButton<String?>(
-                      value: _filterStatus,
-                      hint: Text('Todas etapas', style: AppTheme.jakarta(fontSize: 13)),
-                      underline: const SizedBox(),
-                      items: [
-                        DropdownMenuItem(value: null, child: Text('Todas etapas', style: AppTheme.jakarta(fontSize: 13))),
-                        ...OSStatus.ordered.map((s) => DropdownMenuItem(
-                          value: s,
-                          child: Text(OSStatus.labels[s] ?? s, style: AppTheme.jakarta(fontSize: 13)),
-                        )),
-                      ],
-                      onChanged: (v) => setState(() => _filterStatus = v),
-                    ),
-                    DropdownButton<int?>(
-                      value: _filterMonth,
-                      hint: const Text('Mês', style: TextStyle(fontSize: 13)),
-                      underline: const SizedBox(),
-                      items: _months.map((m) => DropdownMenuItem(
-                        value: m,
-                        child: Text(_formatMonth(m), style: AppTheme.jakarta(fontSize: 13)),
-                      )).toList(),
-                      onChanged: (v) => setState(() => _filterMonth = v),
-                    ),
-                    DropdownButton<int?>(
-                      value: _filterYear,
-                      hint: const Text('Ano', style: TextStyle(fontSize: 13)),
-                      underline: const SizedBox(),
-                      items: _years.map((y) => DropdownMenuItem(
-                        value: y,
-                        child: Text('$y', style: AppTheme.jakarta(fontSize: 13)),
-                      )).toList(),
-                      onChanged: (v) => setState(() => _filterYear = v),
-                    ),
-                    if (_filterStatus != null || _searchText.isNotEmpty)
-                      TextButton.icon(
-                        icon: const Icon(LucideIcons.x, size: 14),
-                        label: const Text('Limpar'),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _filterStatus = null);
-                        },
-                      ),
-                    const Spacer(),
-                    Text(
-                      '${filtered.length} OS  •  ${Formatters.formatCurrency(total)}',
-                      style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted),
+                    const Icon(LucideIcons.alertCircle, size: 48, color: AppColors.error),
+                    const SizedBox(height: 16),
+                    Text('Erro: ${paged.error}', style: AppTheme.jakarta(color: AppColors.textMuted)),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _applyServerFilters,
+                      child: const Text('Tentar Novamente'),
                     ),
                   ],
                 ),
               ),
-
-              // Tabela
-              Expanded(
-                child: filtered.isEmpty
-                    ? const EmptyState(
-                        title: 'Nenhuma OS encontrada',
-                        message: 'Crie uma nova ordem de serviço para começar.',
-                        icon: LucideIcons.clipboardList,
-                      )
-                    : _buildTable(filtered),
+            )
+          else if (paged.items.isEmpty && paged.isLoadingMore)
+            const Expanded(child: Center(child: CircularProgressIndicator()))
+          else if (rows.isEmpty)
+            const Expanded(
+              child: EmptyState(
+                title: 'Nenhuma OS encontrada',
+                message: 'Crie uma nova ordem de serviço para começar.',
+                icon: LucideIcons.clipboardList,
               ),
-            ],
-          );
-        },
+            )
+          else
+            Expanded(child: _buildTable(rows)),
+        ],
       ),
     );
   }
 
   Widget _buildTable(List<ServiceOrder> rows) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          minWidth: MediaQuery.of(context).size.width,
-          maxWidth: MediaQuery.of(context).size.width,
-        ),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.vertical,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildHeader(),
-              ...rows.asMap().entries.map((e) => _buildRow(e.key, e.value)),
-            ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: MediaQuery.of(context).size.width,
+            height: constraints.maxHeight,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildHeader(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    scrollDirection: Axis.vertical,
+                    child: Column(
+                      children: rows.asMap().entries.map((e) => _buildRow(e.key, e.value)).toList(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   Widget _buildHeader() {
     return Container(
-      color: AppColors.primary.withValues(alpha: 0.07),
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        border: Border(
+          bottom: BorderSide(color: AppColors.border, width: 2),
+        ),
+      ),
       child: Row(
         children: [
           ..._cols.map((c) => _headerCell(c.$1, c.$2)),
@@ -290,12 +322,12 @@ class _OrderListScreenState extends ConsumerState<OrderListScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                label,
-                style: AppTheme.jakarta(
-                  fontSize: 12,
+                label.toUpperCase(),
+                style: AppTheme.syne(
+                  fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: isSorted ? AppColors.primary : AppColors.textMuted,
-                ).copyWith(letterSpacing: 0.3),
+                ).copyWith(letterSpacing: 0.5),
               ),
               if (isSorted) ...[
                 const SizedBox(width: 4),
@@ -318,14 +350,14 @@ class _OrderListScreenState extends ConsumerState<OrderListScreen> {
     final isOverdue = o.scheduledDate != null &&
         o.status != OSStatus.entrega &&
         o.scheduledDate!.isBefore(DateTime.now());
-    final bg = index.isEven ? AppColors.surface : AppColors.surfaceElevated;
 
     return InkWell(
       onTap: () => context.push('/orders/${o.id}'),
+      hoverColor: AppColors.primary.withOpacity(0.03),
       child: Container(
-        decoration: BoxDecoration(
-          color: bg,
-          border: Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9), width: 1)),
         ),
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
@@ -413,9 +445,9 @@ class _OrderListScreenState extends ConsumerState<OrderListScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: sc.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: sc.withValues(alpha: 0.3)),
+                      color: sc.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                      border: Border.all(color: sc.withOpacity(0.3)),
                     ),
                     child: Text(days == 0 ? 'Hoje' : '$days d',
                       style: AppTheme.jakarta(fontSize: 11, fontWeight: FontWeight.w700, color: sc)),

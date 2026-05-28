@@ -42,3 +42,19 @@ final profileServiceProvider = Provider<ProfileService>((ref) {
   final client = ref.watch(supabaseClientProvider);
   return ProfileService(client);
 });
+
+// Provides the SupplierService
+final supplierServiceProvider = Provider<SupplierService>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  return SupplierService(client);
+});
+
+final storageServiceProvider = Provider<StorageService>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  return StorageService(client);
+});
+
+final financeServiceProvider = Provider<FinanceService>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  return FinanceService(client);
+});

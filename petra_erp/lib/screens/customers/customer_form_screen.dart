@@ -9,6 +9,7 @@ import '../../core/utils/formatters.dart';
 import '../../core/utils/validators.dart';
 import '../../models/customer.dart';
 import '../../providers/customer_provider.dart';
+import '../../providers/providers.dart';
 import '../../widgets/widgets.dart';
 
 /// Screen to create or edit a customer.
@@ -50,30 +51,38 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
     }
   }
 
-  void _loadCustomerData() {
-    // Read from the cached customers list
+  void _loadCustomerData() async {
     final customersState = ref.read(customerProvider);
     customersState.maybeWhen(
       data: (list) {
         try {
           final customer = list.firstWhere((c) => c.id == widget.id);
-          _nameController.text = customer.name;
-          _cpfCnpjController.text = customer.cpfCnpj ?? '';
-          _phoneController.text = Formatters.formatPhone(customer.phone);
-          _phone2Controller.text = customer.phone2 != null ? Formatters.formatPhone(customer.phone2!) : '';
-          _emailController.text = customer.email ?? '';
-          _addressController.text = customer.address ?? '';
-          _cityController.text = customer.city ?? '';
-          _stateController.text = customer.state;
-          _notesController.text = customer.notes ?? '';
-        } catch (_) {
-          _errorMessage = 'Cliente não encontrado no cache.';
-        }
+          _populateCustomerForm(customer);
+          return;
+        } catch (_) {}
       },
-      orElse: () {
-        _errorMessage = 'Erro: Lista de clientes não carregada.';
-      },
+      orElse: () {},
     );
+    // Fallback: fetch from API
+    try {
+      final service = ref.read(customerServiceProvider);
+      final customer = await service.getCustomerById(widget.id!);
+      _populateCustomerForm(customer);
+    } catch (e) {
+      setState(() { _errorMessage = 'Erro ao carregar cliente: $e'; });
+    }
+  }
+
+  void _populateCustomerForm(Customer customer) {
+    _nameController.text = customer.name;
+    _phoneController.text = Formatters.formatPhone(customer.phone);
+    _phone2Controller.text = customer.phone2 != null ? Formatters.formatPhone(customer.phone2!) : '';
+    _cpfCnpjController.text = customer.cpfCnpj ?? '';
+    _emailController.text = customer.email ?? '';
+    _addressController.text = customer.address ?? '';
+    _cityController.text = customer.city ?? '';
+    _stateController.text = customer.state;
+    _notesController.text = customer.notes ?? '';
   }
 
   @override

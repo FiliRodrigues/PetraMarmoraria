@@ -7,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/models.dart';
+import '../../providers/finance_provider.dart';
 import '../../providers/os_provider.dart';
 import '../../providers/supabase_provider.dart';
 import '../../widgets/common/empty_state.dart';
@@ -48,7 +49,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final nextMonth = _filterMonth == 12
         ? DateTime(_filterYear + 1, 1, 1)
         : DateTime(_filterYear, _filterMonth + 1, 1);
-    return nextMonth.subtract(const Duration(days: 1));
+    return nextMonth.subtract(const Duration(microseconds: 1));
   }
 
   @override
@@ -200,8 +201,50 @@ class _ReportsContent extends ConsumerWidget {
         const SizedBox(height: 20),
 
         _buildDeadlineSection(entreguesNoPrazo, vencidas, semPrazo, inProgress, pontual),
+        const SizedBox(height: 20),
+
+        _buildFinanceSection(ref, filterMonth, filterYear),
         const SizedBox(height: 24),
       ]),
+    );
+  }
+
+  Widget _buildFinanceSection(WidgetRef ref, int month, int year) {
+    final summaryAsync = ref.watch(financeSummaryProvider((month: month, year: year)));
+
+    return summaryAsync.when(
+      loading: () => const _SectionCard(
+        title: 'Financeiro',
+        icon: LucideIcons.wallet,
+        child: SizedBox(height: 80, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
+      ),
+      error: (err, _) => _SectionCard(
+        title: 'Financeiro',
+        icon: LucideIcons.wallet,
+        child: Text('Erro ao carregar dados: $err',
+          style: AppTheme.jakarta(fontSize: 12, color: AppColors.error)),
+      ),
+      data: (summary) {
+        final totalReceived = summary['totalReceived'] ?? 0;
+        final totalToPay = summary['totalToPay'] ?? 0;
+        final balance = summary['balance'] ?? 0;
+
+        return _SectionCard(
+          title: 'Financeiro',
+          icon: LucideIcons.wallet,
+          child: Row(children: [
+            _KPICard(label: 'Total Recebido no Mês', value: Formatters.formatCurrency(totalReceived),
+              icon: LucideIcons.arrowDownFromLine, color: AppColors.success),
+            const SizedBox(width: 12),
+            _KPICard(label: 'Total a Pagar', value: Formatters.formatCurrency(totalToPay),
+              icon: LucideIcons.arrowUpFromLine, color: AppColors.error),
+            const SizedBox(width: 12),
+            _KPICard(label: 'Saldo do Mês', value: Formatters.formatCurrency(balance),
+              icon: LucideIcons.barChart3,
+              color: balance >= 0 ? AppColors.success : AppColors.error),
+          ]),
+        );
+      },
     );
   }
 
@@ -255,9 +298,9 @@ class _ReportsContent extends ConsumerWidget {
   }
 
   Widget _buildProductionByEmployee(WidgetRef ref, List<ServiceOrder> monthOrders) {
-    final orderIds = monthOrders.map((o) => o.id).toList();
+    final orderIdsKey = monthOrders.map((o) => o.id).join(',');
 
-    final assignmentsAsync = ref.watch(_assignmentsForOrdersProvider(orderIds));
+    final assignmentsAsync = ref.watch(_assignmentsForOrdersProvider(orderIdsKey));
 
     return _SectionCard(
       title: 'Produção por Funcionário',
@@ -454,8 +497,9 @@ class _MonthData {
   const _MonthData(this.label, this.created, this.delivered);
 }
 
-final _assignmentsForOrdersProvider = FutureProvider.family<List<OrderAssignment>, List<String>>((ref, orderIds) async {
-  if (orderIds.isEmpty) return [];
+final _assignmentsForOrdersProvider = FutureProvider.family<List<OrderAssignment>, String>((ref, orderIdsKey) async {
+  if (orderIdsKey.isEmpty) return [];
+  final orderIds = orderIdsKey.split(',').where((id) => id.isNotEmpty).toList();
   final service = ref.read(serviceOrderServiceProvider);
   return await service.getAssignmentsForOrders(orderIds);
 });

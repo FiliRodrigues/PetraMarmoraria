@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
@@ -116,6 +118,39 @@ class CustomerDetailScreen extends ConsumerWidget {
                         _InfoItem(LucideIcons.building2, 'Cidade / Estado',
                             '${customer.city} / ${customer.state ?? "-"}'),
                       ],
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          if (customer.phone.isNotEmpty)
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: Icon(LucideIcons.phone, size: 14),
+                                label: Text('Ligar', style: TextStyle(fontSize: 12)),
+                                onPressed: () => launchUrl(Uri.parse('tel:${customer.phone.replaceAll(RegExp(r'\D'), '')}')),
+                              ),
+                            ),
+                          if (customer.phone.isNotEmpty) SizedBox(width: 8),
+                          if (customer.phone.isNotEmpty)
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: Icon(LucideIcons.messageCircle, size: 14),
+                                label: Text('WhatsApp', style: TextStyle(fontSize: 12)),
+                                onPressed: () => launchUrl(Uri.parse('https://wa.me/55${customer.phone.replaceAll(RegExp(r'\D'), '')}')),
+                              ),
+                            ),
+                          if (customer.phone.isNotEmpty) SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: Icon(LucideIcons.copy, size: 14),
+                              label: Text('Copiar', style: TextStyle(fontSize: 12)),
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: customer.phone));
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Telefone copiado!')));
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
                       if (customer.notes != null) ...[
                         const SizedBox(height: 14),
                         _InfoItem(LucideIcons.fileText, 'Observações', customer.notes!),

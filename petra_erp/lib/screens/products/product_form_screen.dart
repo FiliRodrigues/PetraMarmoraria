@@ -8,6 +8,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/validators.dart';
 import '../../models/product.dart';
 import '../../providers/product_provider.dart';
+import '../../providers/providers.dart';
 import '../../widgets/widgets.dart';
 
 /// Screen to create or edit a product/material.
@@ -38,6 +39,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     'marmore',
     'granito',
     'quartzo',
+    'ardosia',
     'outro',
   ];
 
@@ -50,25 +52,34 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     }
   }
 
-  void _loadProductData() {
+  void _loadProductData() async {
     final productsState = ref.read(productProvider);
     productsState.maybeWhen(
       data: (list) {
         try {
           final product = list.firstWhere((p) => p.id == widget.id);
-          _nameController.text = product.name;
-          _priceController.text = product.unitPrice.toStringAsFixed(2);
-          _selectedType = _types.contains(product.type.toLowerCase()) 
-              ? product.type.toLowerCase() 
-              : 'marmore';
-        } catch (_) {
-          _errorMessage = 'Produto não encontrado no cache.';
-        }
+          _populateProductForm(product);
+          return;
+        } catch (_) {}
       },
-      orElse: () {
-        _errorMessage = 'Erro: Catálogo de produtos não carregada.';
-      },
+      orElse: () {},
     );
+    // Fallback: fetch from API
+    try {
+      final service = ref.read(productServiceProvider);
+      final product = await service.getProductById(widget.id!);
+      _populateProductForm(product);
+    } catch (e) {
+      setState(() { _errorMessage = 'Erro ao carregar produto: $e'; });
+    }
+  }
+
+  void _populateProductForm(Product product) {
+    _nameController.text = product.name;
+    _priceController.text = product.unitPrice.toStringAsFixed(2);
+    _selectedType = _types.contains(product.type.toLowerCase())
+        ? product.type.toLowerCase()
+        : 'marmore';
   }
 
   @override

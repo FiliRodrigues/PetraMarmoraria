@@ -21,6 +21,7 @@ class KanbanColumn extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statusLabel = OSStatus.labels[status] ?? status;
+    final statusColor = AppColors.statusColors(status).color;
 
     return DragTarget<ServiceOrder>(
       onWillAccept: (order) {
@@ -45,12 +46,12 @@ class KanbanColumn extends ConsumerWidget {
 
         return Container(
           width: isDesktop ? 300.0 : null,
-          margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+          margin: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 10.0),
           decoration: BoxDecoration(
             color: isHovered
                 ? AppColors.primary.withOpacity(0.04)
                 : AppColors.surfaceElevated.withOpacity(0.6),
-            borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             border: Border.all(
               color: isHovered ? AppColors.primary.withOpacity(0.3) : AppColors.border,
               width: isHovered ? 1.5 : 1,
@@ -61,7 +62,7 @@ class KanbanColumn extends ConsumerWidget {
             children: [
               // Column Header
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -72,7 +73,7 @@ class KanbanColumn extends ConsumerWidget {
                           Container(
                             width: 8, height: 8,
                             decoration: BoxDecoration(
-                              color: AppColors.statusColors(status).color,
+                              color: statusColor,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -80,11 +81,11 @@ class KanbanColumn extends ConsumerWidget {
                           Flexible(
                             child: Text(
                               statusLabel.toUpperCase(),
-                              style: AppTheme.jakarta(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.primary,
-                              ).copyWith(letterSpacing: 0.8),
+                              style: AppTheme.syne(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textSecondary,
+                              ).copyWith(letterSpacing: 0.6),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -92,12 +93,19 @@ class KanbanColumn extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    Text(
-                      '${orders.length}',
-                      style: AppTheme.numeric(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textMuted,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                      ),
+                      child: Text(
+                        '${orders.length}',
+                        style: AppTheme.numeric(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: statusColor,
+                        ),
                       ),
                     ),
                   ],
@@ -107,7 +115,7 @@ class KanbanColumn extends ConsumerWidget {
               // Cards List
               Expanded(
                 child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
                   itemCount: orders.length,
                   itemBuilder: (context, index) {
                     return OSCard(order: orders[index]);

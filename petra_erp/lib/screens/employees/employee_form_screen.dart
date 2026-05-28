@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/validators.dart';
 import '../../models/profile.dart';
 import '../../providers/employee_provider.dart';
+import '../../providers/supabase_provider.dart';
 import '../../widgets/widgets.dart';
 
 class EmployeeFormScreen extends ConsumerStatefulWidget {
@@ -26,6 +28,8 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
 
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
 
   final Set<String> _selectedRoles = {};
   bool _isActive = true;
@@ -78,26 +82,43 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
     final employeeState = ref.read(employeeProvider);
     employeeState.maybeWhen(
       data: (list) {
-        try {
-          final profile = list.firstWhere((e) => e.id == widget.id);
-          _nameController.text = profile.name;
-          _phoneController.text = profile.phone ?? '';
-          _selectedRoles.addAll(profile.roles);
-          _isActive = profile.active;
-        } catch (_) {
-          _errorMessage = 'Funcionário não encontrado no cache.';
+        final cached = list.where((e) => e.id == widget.id).firstOrNull;
+        if (cached != null) {
+          _populate(cached);
+        } else {
+          _loadEmployeeFromNetwork();
         }
       },
-      orElse: () {
-        _errorMessage = 'Erro: Lista de funcionários não carregada.';
-      },
+      orElse: _loadEmployeeFromNetwork,
     );
+  }
+
+  Future<void> _loadEmployeeFromNetwork() async {
+    try {
+      final profile = await ref.read(profileServiceProvider).getProfileById(widget.id!);
+      if (mounted) _populate(profile);
+    } catch (e) {
+      if (mounted) setState(() => _errorMessage = 'Erro ao carregar funcionário.');
+    }
+  }
+
+  void _populate(Profile profile) {
+    setState(() {
+      _nameController.text = profile.name;
+      _phoneController.text = profile.phone ?? '';
+      _selectedRoles
+        ..clear()
+        ..addAll(profile.roles);
+      _isActive = profile.active;
+    });
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -118,23 +139,33 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
 
     try {
       if (_isEditing) {
+        final list = ref.read(employeeProvider).asData?.value ?? [];
+        final existing = list.firstWhere((e) => e.id == widget.id);
         final updatedProfile = Profile(
           id: widget.id!,
           name: _nameController.text.trim(),
           roles: _selectedRoles.toList(),
           phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
           active: _isActive,
-          createdAt: DateTime.now(),
+          createdAt: existing.createdAt,
         );
         await ref.read(employeeProvider.notifier).updateEmployee(updatedProfile);
         if (mounted) context.pop();
       } else {
-        await ref.read(employeeProvider.notifier).createEmployee(
-          name: _nameController.text.trim(),
-          roles: _selectedRoles.toList(),
-          phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-        );
-        if (mounted) context.pop();
+        final supabase = Supabase.instance.client;
+        await supabase.functions.invoke('create-employee', body: {
+          'email': _emailController.text.trim(),
+          'password': _passwordController.text,
+          'name': _nameController.text.trim(),
+          'roles': _selectedRoles.toList(),
+          'phone': _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Funcionário criado com sucesso!')),
+          );
+          context.pop();
+        }
       }
     } catch (e) {
       setState(() {
@@ -180,6 +211,29 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                           _errorMessage!,
                           style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.error),
                         ),
+                      ),
+                      const SizedBox(height: 16.0),
+                    ],
+
+                    TextFormField(
+                      controller: _emailController,
+                      decoration: const InputDecoration(
+                        labelText: 'E-mail *',
+                        prefixIcon: Icon(LucideIcons.mail, size: 16),
+                      ),
+                      validator: Validators.validateEmail,
+                    ),
+                    const SizedBox(height: 16.0),
+
+                    if (!_isEditing) ...[
+                      TextFormField(
+                        controller: _passwordController,
+                        decoration: const InputDecoration(
+                          labelText: 'Senha *',
+                          prefixIcon: Icon(LucideIcons.lock, size: 16),
+                        ),
+                        obscureText: true,
+                        validator: (val) => Validators.validatePassword(val),
                       ),
                       const SizedBox(height: 16.0),
                     ],

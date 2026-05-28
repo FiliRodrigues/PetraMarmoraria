@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/service_order.dart';
 import '../models/status_history.dart';
@@ -23,7 +24,40 @@ class ServiceOrderService {
       if (toDate != null) {
         query = query.lte('created_at', toDate.toIso8601String());
       }
-      final response = await query.order('queue_position', ascending: true);
+      final response = await query
+          .order('queue_position', ascending: true)
+          .limit(500);
+      return (response as List).map((e) {
+        final customerName = e['customers'] != null ? e['customers']['name'] as String? : null;
+        return ServiceOrder.fromMap(e, customerName: customerName);
+      }).toList();
+    } catch (e) {
+      throw Exception('Falha ao buscar OS: ${e.toString()}');
+    }
+  }
+
+  Future<List<ServiceOrder>> getServiceOrdersPaged({
+    required int offset,
+    int pageSize = 30,
+    String? search,
+    String? status,
+    int? month,
+    int? year,
+  }) async {
+    try {
+      var query = _client.from('service_orders').select('*, customers(name)');
+      if (search != null && search.isNotEmpty) {
+        query = query.or('display_number.ilike.%$search%,customers.name.ilike.%$search%');
+      }
+      if (status != null) query = query.eq('status', status);
+      if (month != null && year != null) {
+        final from = DateTime(year, month, 1);
+        final to = DateTime(year, month + 1, 1);
+        query = query.gte('created_at', from.toIso8601String()).lt('created_at', to.toIso8601String());
+      }
+      final response = await query
+          .order('queue_position', ascending: true)
+          .range(offset, offset + pageSize - 1);
       return (response as List).map((e) {
         final customerName = e['customers'] != null ? e['customers']['name'] as String? : null;
         return ServiceOrder.fromMap(e, customerName: customerName);
@@ -38,7 +72,7 @@ class ServiceOrderService {
         .from('service_orders')
         .stream(primaryKey: ['id'])
         .order('queue_position', ascending: true)
-        .map((events) => events.map((e) => ServiceOrder.fromMap(e)).toList());
+        .asyncMap((_) => getServiceOrders());
   }
 
   Future<ServiceOrder> getServiceOrderById(String id) async {
@@ -124,9 +158,9 @@ class ServiceOrderService {
           );
         }
         if (requiredRole != null) {
-          final empResponse = await _client.from('profiles').select('role').eq('id', employeeId).single();
-          final empRole = empResponse['role'] as String?;
-          if (empRole != requiredRole) {
+          final empResponse = await _client.from('profiles').select('roles').eq('id', employeeId).single();
+          final empRoles = (empResponse['roles'] as List?)?.cast<String>() ?? [];
+          if (!empRoles.contains(requiredRole)) {
             throw Exception(
               'Funcionário inválido para "${OSStatus.labels[newStatus]}". É necessário um funcionário com cargo "$requiredRole".',
             );
@@ -170,7 +204,7 @@ class ServiceOrderService {
       );
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      // If function doesn't exist or error occurs, return empty list
+      debugPrint('Erro ao verificar violação de fila: $e');
       return [];
     }
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
@@ -87,6 +88,25 @@ class ProfileScreen extends ConsumerWidget {
                       const SizedBox(height: 24),
                       const Divider(color: AppColors.border),
                       const SizedBox(height: 20),
+
+                      // Edit profile button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(LucideIcons.pencil, size: 16),
+                          label: const Text('EDITAR PERFIL'),
+                          onPressed: () => context.push('/profile/edit'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
 
                       // Logout button
                       SizedBox(

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/theme/app_theme.dart';
+import 'models/profile.dart';
 import 'screens/screens.dart';
 import 'widgets/widgets.dart';
 import 'providers/auth_provider.dart';
@@ -10,13 +11,18 @@ import 'providers/auth_provider.dart';
 // Stable GoRouter that doesn't get recreated on every auth state change.
 // Uses refreshListenable to re-evaluate redirects without rebuilding the router.
 final _authStateListenable = ValueNotifier<AsyncValue<User?>>(const AsyncValue.loading());
+final _profileListenable = ValueNotifier<Profile?>(null);
 
 final routerProvider = Provider<GoRouter>((ref) {
   ref.listen(authProvider, (_, next) {
     _authStateListenable.value = next;
   });
-  // Seed initial value
+  ref.listen(currentProfileProvider, (_, next) {
+    _profileListenable.value = next.valueOrNull;
+  });
+  // Seed initial values
   _authStateListenable.value = ref.read(authProvider);
+  _profileListenable.value = ref.read(currentProfileProvider).valueOrNull;
 
   return GoRouter(
     initialLocation: '/',
@@ -37,6 +43,14 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       if (isLoggingIn) {
         return '/';
+      }
+
+      // Employee route guard - admin only
+      if (state.matchedLocation.startsWith('/employees')) {
+        final profile = _profileListenable.value;
+        if (profile == null || !profile.hasRole('admin')) {
+          return '/';
+        }
       }
 
       return null;
@@ -119,16 +133,68 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const EmployeeFormScreen(),
           ),
           GoRoute(
+            path: '/employees/:id/edit',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return EmployeeFormScreen(id: id);
+            },
+          ),
+          GoRoute(
             path: '/products',
             builder: (context, state) => const ProductListScreen(),
+          ),
+          GoRoute(
+            path: '/products/new',
+            builder: (context, state) => const ProductFormScreen(),
+          ),
+          GoRoute(
+            path: '/products/:id/edit',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return ProductFormScreen(id: id);
+            },
           ),
           GoRoute(
             path: '/profile',
             builder: (context, state) => const ProfileScreen(),
           ),
           GoRoute(
+            path: '/profile/edit',
+            builder: (context, state) => const ProfileEditScreen(),
+          ),
+          GoRoute(
+            path: '/finance',
+            builder: (context, state) => const FinanceScreen(),
+          ),
+          GoRoute(
             path: '/reports',
             builder: (context, state) => const ReportsScreen(),
+          ),
+          GoRoute(
+            path: '/settings',
+            builder: (context, state) => const SettingsScreen(),
+          ),
+          GoRoute(
+            path: '/suppliers',
+            builder: (context, state) => const SupplierListScreen(),
+          ),
+          GoRoute(
+            path: '/suppliers/new',
+            builder: (context, state) => const SupplierFormScreen(),
+          ),
+          GoRoute(
+            path: '/suppliers/:id',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return SupplierDetailScreen(id: id);
+            },
+          ),
+          GoRoute(
+            path: '/suppliers/:id/edit',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return SupplierFormScreen(id: id);
+            },
           ),
         ],
       ),

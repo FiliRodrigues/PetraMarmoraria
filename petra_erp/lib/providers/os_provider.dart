@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/providers/paged_notifier.dart';
 import '../models/models.dart';
 import '../services/services.dart';
 import 'supabase_provider.dart';
@@ -118,3 +119,41 @@ final osHistoryProvider = FutureProvider.family<List<StatusHistory>, String>((re
 });
 
 final orderMonthFilterProvider = StateProvider<({int month, int year})?>((ref) => null);
+
+typedef OsPageParams = ({String? search, String? status, int? month, int? year});
+
+class OsPagedNotifier extends PagedNotifier<ServiceOrder> {
+  final ServiceOrderService _service;
+  String? _status;
+  int? _month;
+  int? _year;
+
+  OsPagedNotifier(this._service) {
+    final now = DateTime.now();
+    _month = now.month;
+    _year = now.year;
+    refresh();
+  }
+
+  @override
+  Future<List<ServiceOrder>> fetchPage({required int offset, required int pageSize, String? search}) =>
+      _service.getServiceOrdersPaged(
+        offset: offset,
+        pageSize: pageSize,
+        search: search,
+        status: _status,
+        month: _month,
+        year: _year,
+      );
+
+  Future<void> refreshWithFilters({String? search, String? status, int? month, int? year}) {
+    _status = status;
+    _month = month;
+    _year = year;
+    return refresh(search: search);
+  }
+}
+
+final osPagedProvider = StateNotifierProvider<OsPagedNotifier, PagedState<ServiceOrder>>((ref) {
+  return OsPagedNotifier(ref.watch(serviceOrderServiceProvider));
+});

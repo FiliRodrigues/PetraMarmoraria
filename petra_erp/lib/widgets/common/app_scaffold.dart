@@ -22,7 +22,7 @@ class AppScaffold extends StatelessWidget {
         body: Row(
           children: [
             SizedBox(
-              width: 280.0,
+              width: 260.0,
               child: AppDrawer(isSidebar: true),
             ),
             const VerticalDivider(width: 1.0, thickness: 1.0, color: AppColors.border),

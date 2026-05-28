@@ -8,7 +8,8 @@ class ServiceOrder {
   final String customerId;
   final String? customerName; // From customer join
   final String description;
-  final String status; // orcamento, aprovado, esperando_material, corte, montagem, entrega
+  final String? notes;
+  final String status;
   final int queuePosition;
   final String? material;
   final String? edgeType;
@@ -26,6 +27,7 @@ class ServiceOrder {
     required this.customerId,
     this.customerName,
     required this.description,
+    this.notes,
     this.status = OSStatus.orcamento,
     this.queuePosition = 0,
     this.material,
@@ -42,7 +44,7 @@ class ServiceOrder {
   // Helpers for time/delay logic
   bool get isDelayed {
     if (status == OSStatus.entrega) return false;
-    return daysStale > 5;
+    return (scheduledDate != null && scheduledDate!.isBefore(DateTime.now())) || daysStale > 5;
   }
 
   bool get isWarning {
@@ -70,6 +72,7 @@ class ServiceOrder {
     String? customerId,
     String? customerName,
     String? description,
+    String? notes,
     String? status,
     int? queuePosition,
     String? material,
@@ -88,6 +91,7 @@ class ServiceOrder {
       customerId: customerId ?? this.customerId,
       customerName: customerName ?? this.customerName,
       description: description ?? this.description,
+      notes: notes ?? this.notes,
       status: status ?? this.status,
       queuePosition: queuePosition ?? this.queuePosition,
       material: material ?? this.material,
@@ -108,6 +112,7 @@ class ServiceOrder {
       'display_number': displayNumber,
       'customer_id': customerId,
       'description': description,
+      'notes': notes,
       'status': status,
       'queue_position': queuePosition,
       'material': material,
@@ -129,6 +134,7 @@ class ServiceOrder {
       customerId: map['customer_id'] as String,
       customerName: customerName ?? map['customerName'] as String? ?? (map['customers'] != null ? map['customers']['name'] as String? : null),
       description: map['description'] as String? ?? '',
+      notes: map['notes'] as String?,
       status: map['status'] as String? ?? OSStatus.orcamento,
       queuePosition: map['queue_position'] as int? ?? 0,
       material: map['material'] as String?,
@@ -160,6 +166,7 @@ class ServiceOrder {
         other.customerId == customerId &&
         other.customerName == customerName &&
         other.description == description &&
+        other.notes == notes &&
         other.status == status &&
         other.queuePosition == queuePosition &&
         other.material == material &&
@@ -181,6 +188,7 @@ class ServiceOrder {
       customerId,
       customerName,
       description,
+      notes,
       status,
       queuePosition,
       material,
@@ -197,6 +205,6 @@ class ServiceOrder {
 
   @override
   String toString() {
-    return 'ServiceOrder(id: $id, number: $formattedNumber, status: $status, client: $customerName)';
+    return 'ServiceOrder(id: $id, number: $formattedNumber, status: $status, client: $customerName, notes: $notes)';
   }
 }

@@ -7,6 +7,7 @@ class Profile {
   final String name;
   final List<String> roles;
   final String? phone;
+  final String? avatarUrl;
   final bool active;
   final DateTime createdAt;
 
@@ -16,6 +17,7 @@ class Profile {
     required this.name,
     required this.roles,
     this.phone,
+    this.avatarUrl,
     this.active = true,
     required this.createdAt,
   });
@@ -29,6 +31,7 @@ class Profile {
     String? name,
     List<String>? roles,
     String? phone,
+    String? avatarUrl,
     bool? active,
     DateTime? createdAt,
   }) {
@@ -38,6 +41,7 @@ class Profile {
       name: name ?? this.name,
       roles: roles ?? this.roles,
       phone: phone ?? this.phone,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
       active: active ?? this.active,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -50,6 +54,7 @@ class Profile {
       'name': name,
       'roles': roles,
       'phone': phone,
+      'avatar_url': avatarUrl,
       'active': active,
       'created_at': createdAt.toIso8601String(),
     };
@@ -71,6 +76,7 @@ class Profile {
       name: map['name'] as String,
       roles: rolesList,
       phone: map['phone'] as String?,
+      avatarUrl: map['avatar_url'] as String?,
       active: map['active'] as bool? ?? true,
       createdAt: DateTime.parse(map['created_at'] as String),
     );
@@ -85,13 +91,14 @@ class Profile {
         other.name == name &&
         listEquals(other.roles, roles) &&
         other.phone == phone &&
+        other.avatarUrl == avatarUrl &&
         other.active == active &&
         other.createdAt == createdAt;
   }
 
   @override
   int get hashCode {
-    return Object.hash(id, email, name, Object.hashAll(roles), phone, active, createdAt);
+    return Object.hash(id, email, name, Object.hashAll(roles), phone, avatarUrl, active, createdAt);
   }
 
   @override

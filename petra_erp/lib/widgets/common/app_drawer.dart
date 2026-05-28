@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
@@ -28,8 +29,13 @@ class AppDrawer extends ConsumerWidget {
 
     if (isSidebar) {
       return Container(
-        width: 240,
-        color: AppColors.sidebarDark,
+        width: 260,
+        decoration: const BoxDecoration(
+          color: AppColors.sidebarDark,
+          border: Border(
+            right: BorderSide(color: Color(0x0FFFFFFF), width: 1),
+          ),
+        ),
         child: SafeArea(child: body),
       );
     }
@@ -61,20 +67,25 @@ class _DrawerBody extends StatelessWidget {
         _Header(profile: profile, isAdmin: isAdmin),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             children: [
               _sectionLabel('PRINCIPAL'),
               _item(ctx, LucideIcons.layoutDashboard, 'Painel Kanban',     '/',          location),
               _item(ctx, LucideIcons.clipboardList,   'Ordens de Serviço', '/orders',    location),
               _sectionLabel('CADASTROS'),
               _item(ctx, LucideIcons.users,           'Clientes',          '/customers', location),
+              _item(ctx, LucideIcons.truck,           'Fornecedores',      '/suppliers', location),
               if (isAdmin)
               _item(ctx, LucideIcons.hardHat,         'Funcionários',      '/employees', location),
               _item(ctx, LucideIcons.package,         'Produtos',          '/products',  location),
+              _sectionLabel('FINANCEIRO'),
+              _item(ctx, LucideIcons.wallet,          'Financeiro',        '/finance',   location),
               _sectionLabel('ANÁLISE'),
               _item(ctx, LucideIcons.barChart2,       'Relatórios',        '/reports',   location),
               _sectionLabel('CONTA'),
               _item(ctx, LucideIcons.user,            'Meu Perfil',        '/profile',   location),
+              _sectionLabel('SISTEMA'),
+              _item(ctx, LucideIcons.settings,       'Configurações',     '/settings',  location),
             ],
           ),
         ),
@@ -84,13 +95,13 @@ class _DrawerBody extends StatelessWidget {
   }
 
   Widget _sectionLabel(String label) => Padding(
-    padding: const EdgeInsets.fromLTRB(12, 14, 0, 4),
+    padding: const EdgeInsets.fromLTRB(16, 16, 0, 4),
     child: Text(
       label,
-      style: AppTheme.jakarta(
-        fontSize: 9.5, fontWeight: FontWeight.w700,
-        color: Colors.white.withOpacity(0.28),
-      ).copyWith(letterSpacing: 1.5),
+      style: AppTheme.syne(
+        fontSize: 10, fontWeight: FontWeight.w700,
+        color: Colors.white.withOpacity(0.25),
+      ).copyWith(letterSpacing: 0.8),
     ),
   );
 
@@ -100,13 +111,13 @@ class _DrawerBody extends StatelessWidget {
       icon: icon, label: label, isActive: isActive,
       onTap: () {
         if (!isSidebar && Scaffold.of(ctx).isDrawerOpen) Navigator.of(ctx).pop();
-        ctx.go(route);
+        ctx.push(route);
       },
     );
   }
 }
 
-// ── Header com logo + user ────────────────────────────────────────────────────
+// ── Header com logo ───────────────────────────────────────────────────────────
 class _Header extends StatelessWidget {
   final dynamic profile;
   final bool isAdmin;
@@ -114,76 +125,31 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name     = profile?.name ?? 'Carregando...';
-    final initials = name.isNotEmpty ? name[0].toUpperCase() : 'U';
-
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 22, 18, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+      child: Row(
         children: [
-          // Logo
-          Row(
-            children: [
-              Container(
-                width: 38, height: 38,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF0F4C7A), Color(0xFF1464A8)],
-                    begin: Alignment.topLeft, end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(LucideIcons.gem, color: Colors.white, size: 17),
-              ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Petra', style: AppTheme.syne(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
-                  Text('Sistema de Gestão',
-                    style: AppTheme.jakarta(fontSize: 9.5, color: Colors.white.withOpacity(0.4))),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          // User chip
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            width: 36, height: 36,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.07),
-              borderRadius: BorderRadius.circular(9),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1A3A5C), Color(0xFF0D2B45)],
+                begin: Alignment.topLeft, end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.accent.withOpacity(0.4), width: 1),
             ),
-            child: Row(
-              children: [
-                Container(
-                  width: 30, height: 30,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(7),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(initials,
-                    style: AppTheme.syne(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primary)),
-                ),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(name,
-                        style: AppTheme.jakarta(fontSize: 12.5, fontWeight: FontWeight.w600, color: Colors.white),
-                        overflow: TextOverflow.ellipsis),
-                      Text(isAdmin ? 'ADMIN' : 'MEMBRO',
-                        style: AppTheme.jakarta(fontSize: 9, fontWeight: FontWeight.w800,
-                          color: isAdmin ? const Color(0xFF7DD3FC) : AppColors.accent)
-                          .copyWith(letterSpacing: 0.5)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+            child: const Icon(LucideIcons.gem, color: AppColors.accent, size: 16),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('PETRA',
+                style: AppTheme.syne(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
+              Text('ERP',
+                style: AppTheme.jakarta(fontSize: 11, color: Colors.white.withOpacity(0.4))),
+            ],
           ),
         ],
       ),
@@ -213,11 +179,14 @@ class _NavItemState extends State<_NavItem> {
   @override
   Widget build(BuildContext context) {
     final bg = widget.isActive
-        ? AppColors.accent.withOpacity(0.17)
-        : _hovered ? Colors.white.withOpacity(0.06) : Colors.transparent;
-    final color = widget.isActive
+        ? AppColors.sidebarItemActiveBg
+        : _hovered ? AppColors.sidebarItemHoverBg : Colors.transparent;
+    final iconColor = widget.isActive
         ? AppColors.accent
-        : Colors.white.withOpacity(0.7);
+        : Colors.white.withOpacity(0.5);
+    final labelColor = widget.isActive
+        ? const Color(0xFFF5E9C8)
+        : Colors.white.withOpacity(0.65);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -227,26 +196,71 @@ class _NavItemState extends State<_NavItem> {
         onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          margin: const EdgeInsets.only(bottom: 2),
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+          margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: bg,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+            border: widget.isActive
+                ? Border.all(color: AppColors.sidebarItemActiveBorder, width: 1)
+                : null,
           ),
           child: Row(
             children: [
-              Icon(widget.icon, size: 16, color: color),
+              Icon(widget.icon, size: 18, color: iconColor),
               const SizedBox(width: 10),
-              Text(widget.label,
-                style: AppTheme.jakarta(
-                  fontSize: 13.5,
-                  fontWeight: widget.isActive ? FontWeight.w600 : FontWeight.w400,
-                  color: color,
-                )),
+              Expanded(
+                child: Text(widget.label,
+                  style: AppTheme.jakarta(
+                    fontSize: 14,
+                    fontWeight: widget.isActive ? FontWeight.w600 : FontWeight.w500,
+                    color: labelColor,
+                  )),
+              ),
+              if (widget.isActive)
+                Container(
+                  width: 3, height: 20,
+                  decoration: BoxDecoration(
+                    color: AppColors.accent,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                  ),
+                ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _VersionText extends StatefulWidget {
+  @override
+  State<_VersionText> createState() => _VersionTextState();
+}
+
+class _VersionTextState extends State<_VersionText> {
+  String _version = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) setState(() => _version = 'v${info.version}');
+    } catch (_) {
+      if (mounted) setState(() => _version = 'v1.0.0');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      _version,
+      style: AppTheme.jakarta(fontSize: 10.5, color: Colors.white.withOpacity(0.22)),
     );
   }
 }
@@ -260,25 +274,21 @@ class _Footer extends StatelessWidget {
   @override
   Widget build(BuildContext ctx) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.08))),
+      padding: const EdgeInsets.all(12),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: Color(0x0FFFFFFF))),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('v1.0.0',
-            style: AppTheme.jakarta(fontSize: 10.5, color: Colors.white.withOpacity(0.22))),
+          _VersionText(),
           GestureDetector(
             onTap: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (_) => const ConfirmDialog(
-                  title: 'Confirmar saída',
-                  content: 'Deseja realmente sair do sistema?',
-                ),
+              final confirm = await ConfirmDialog.show(context,
+                title: 'Confirmar saída',
+                content: 'Deseja realmente sair do sistema?',
               );
-              if (confirm == true) await ref.read(authProvider.notifier).logout();
+              if (confirm) await ref.read(authProvider.notifier).logout();
             },
             child: Row(
               mainAxisSize: MainAxisSize.min,

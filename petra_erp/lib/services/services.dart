@@ -4,3 +4,7 @@ export 'customer_service.dart';
 export 'product_service.dart';
 export 'service_order_service.dart';
 export 'profile_service.dart';
+export 'storage_service.dart';
+export 'settings_service.dart';
+export 'supplier_service.dart';
+export 'finance_service.dart';

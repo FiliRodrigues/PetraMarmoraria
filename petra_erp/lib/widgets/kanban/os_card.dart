@@ -22,7 +22,8 @@ class OSCard extends ConsumerStatefulWidget {
 class _OSCardState extends ConsumerState<OSCard> {
   bool _hovered = false;
 
-  Color get _staleColor => AppColors.stalenessColor(widget.order.daysStale);
+  Color get _statusColor => AppColors.statusColors(widget.order.status).color;
+  Color get _staleColor  => AppColors.stalenessColor(widget.order.daysStale);
 
   bool get _isDelayed {
     final o = widget.order;
@@ -42,8 +43,8 @@ class _OSCardState extends ConsumerState<OSCard> {
 
   @override
   Widget build(BuildContext context) {
-    final o     = widget.order;
-    final days  = o.daysStale;
+    final o    = widget.order;
+    final days = o.daysStale;
 
     final card = MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -51,115 +52,123 @@ class _OSCardState extends ConsumerState<OSCard> {
       cursor: SystemMouseCursors.click,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 140),
-        transform: Matrix4.translationValues(0, _hovered ? -2 : 0, 0),
-        margin: const EdgeInsets.only(bottom: 7),
+        transform: Matrix4.translationValues(0, _hovered ? -1 : 0, 0),
+        margin: const EdgeInsets.only(bottom: 6),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           border: Border.all(
-            color: _hovered ? AppColors.accent.withOpacity(0.35) : AppColors.border,
+            color: _hovered ? AppColors.border : AppColors.border,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: _hovered ? AppColors.shadowElevated : AppColors.shadowCard,
-              blurRadius: _hovered ? 16 : 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          boxShadow: _hovered ? AppColors.shadowMd : AppColors.shadowSm,
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           child: Stack(children: [
+            // border-left colorido por status
             Positioned(
               left: 0, top: 0, bottom: 0,
-              child: Container(width: 3, color: _staleColor),
+              child: Container(width: 3, color: _statusColor),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 11, 11, 11),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Row 1: OS# + badge ────────────────────────────────────────
-              Row(
+              padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ── Row 1: OS# + badge ──────────────────────────────────────
+                  Row(
+                    children: [
+                      Text(
+                        'OS',
+                        style: AppTheme.jakarta(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textMuted,
+                        ).copyWith(letterSpacing: 0.5),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        o.formattedNumber,
+                        style: AppTheme.syne(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (_isDelayed)
+                        _urgencyBadge('VENCIDA', AppColors.staleCrit)
+                      else if (_isToday)
+                        _urgencyBadge('HOJE', AppColors.staleWarn),
+                      if (!widget.isFeedback) ...[
+                        const SizedBox(width: 4),
+                        _ContextMenu(order: o),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+
+                  // ── Cliente ─────────────────────────────────────────────────
                   Text(
-                    o.formattedNumber,
-                    style: AppTheme.numeric(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.primary,
+                    o.customerName ?? 'Sem cliente',
+                    style: AppTheme.jakarta(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const Spacer(),
-                  if (_isDelayed)
-                    _urgencyBadge('VENCIDA', AppColors.staleCrit)
-                  else if (_isToday)
-                    _urgencyBadge('HOJE', AppColors.staleWarn),
-                  if (!widget.isFeedback) ...[
-                    const SizedBox(width: 4),
-                    _ContextMenu(order: o),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 5),
 
-              // ── Cliente ───────────────────────────────────────────────────
-              Text(
-                o.customerName ?? 'Sem cliente',
-                style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w600),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-
-              // ── Material ─────────────────────────────────────────────────
-              if (o.material != null)
-                Text(
-                  o.material!,
-                  style: AppTheme.jakarta(fontSize: 11, color: AppColors.textMuted),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              const SizedBox(height: 8),
-
-              // ── Row final: prazo + staleness ──────────────────────────────
-              Row(
-                children: [
-                  if (o.scheduledDate != null && o.status != OSStatus.entrega) ...[
-                    Icon(LucideIcons.calendarClock,
-                      size: 11,
-                      color: _isDelayed ? AppColors.staleCrit : AppColors.textMuted),
-                    const SizedBox(width: 3),
+                  // ── Material ────────────────────────────────────────────────
+                  if (o.material != null) ...[
+                    const SizedBox(height: 2),
                     Text(
-                      _fmt(o.scheduledDate!),
-                      style: AppTheme.numeric(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: _isDelayed ? AppColors.staleCrit : AppColors.textMuted,
-                      ),
+                      o.material!,
+                      style: AppTheme.jakarta(fontSize: 11, color: AppColors.textMuted),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                  const Spacer(),
-                  // Staleness badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: _staleColor.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      days == 0 ? 'Hoje' : '${days}d',
-                      style: AppTheme.numeric(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: _staleColor,
+                  const SizedBox(height: 10),
+
+                  // ── Row final: prazo + staleness ────────────────────────────
+                  Row(
+                    children: [
+                      if (o.scheduledDate != null && o.status != OSStatus.entrega) ...[
+                        Icon(LucideIcons.calendarClock,
+                          size: 11,
+                          color: _isDelayed ? AppColors.staleCrit : AppColors.textMuted),
+                        const SizedBox(width: 3),
+                        Text(
+                          _fmt(o.scheduledDate!),
+                          style: AppTheme.numeric(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: _isDelayed ? AppColors.staleCrit : AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _staleColor.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                        ),
+                        child: Text(
+                          days == 0 ? 'Hoje' : '${days}d',
+                          style: AppTheme.numeric(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: _staleColor,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
             ),
           ]),
         ),
@@ -183,10 +192,11 @@ class _OSCardState extends ConsumerState<OSCard> {
   }
 
   Widget _urgencyBadge(String label, Color color) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
     decoration: BoxDecoration(
-      color: color.withOpacity(0.1),
-      borderRadius: BorderRadius.circular(4),
+      color: color.withOpacity(0.10),
+      borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+      border: Border.all(color: color.withOpacity(0.25)),
     ),
     child: Text(label,
       style: AppTheme.jakarta(fontSize: 9, fontWeight: FontWeight.w800, color: color)
@@ -202,7 +212,7 @@ class _ContextMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return PopupMenuButton<String>(
-      icon: Icon(LucideIcons.moreVertical, size: 16, color: AppColors.textMuted),
+      icon: Icon(LucideIcons.moreVertical, size: 15, color: AppColors.textMuted),
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),

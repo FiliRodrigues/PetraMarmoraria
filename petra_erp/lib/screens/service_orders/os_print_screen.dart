@@ -6,28 +6,12 @@ import '../../models/models.dart';
 import '../../providers/providers.dart';
 import '../../pdf/pdf.dart';
 
-/// Container class to hold all data needed to render the Service Order PDF.
-class OSPrintData {
-  final ServiceOrder order;
-  final Customer? customer;
-  final List<OrderAssignment> assignments;
-  final List<StatusHistory> history;
-  final List<Profile> profiles;
-
-  OSPrintData({
-    required this.order,
-    this.customer,
-    this.assignments = const [],
-    this.history = const [],
-    this.profiles = const [],
-  });
-}
-
 /// Provider that loads all necessary details for printing in parallel.
 final osPrintDataProvider = FutureProvider.family<OSPrintData, String>((ref, id) async {
   final serviceOrderService = ref.watch(serviceOrderServiceProvider);
   final customerService = ref.watch(customerServiceProvider);
   final profileService = ref.watch(profileServiceProvider);
+  final settingsService = ref.watch(settingsServiceProvider);
 
   // 1. Fetch OS details
   final order = await serviceOrderService.getServiceOrderById(id);
@@ -36,27 +20,41 @@ final osPrintDataProvider = FutureProvider.family<OSPrintData, String>((ref, id)
   Customer? customer;
   try {
     customer = await customerService.getCustomerById(order.customerId);
-  } catch (_) {
-    // Fail silently if customer details fail to load; the PDF generator handles it
+  } catch (e) {
+    debugPrint('Erro ao carregar detalhes do cliente para impressão: $e');
   }
 
   // 3. Fetch Assignments
   List<OrderAssignment> assignments = [];
   try {
     assignments = await serviceOrderService.getAssignments(id);
-  } catch (_) {}
+  } catch (e) {
+    debugPrint('Erro ao carregar atribuições para impressão: $e');
+  }
 
   // 4. Fetch Status History
   List<StatusHistory> history = [];
   try {
     history = await serviceOrderService.getStatusHistory(id);
-  } catch (_) {}
+  } catch (e) {
+    debugPrint('Erro ao carregar histórico de status para impressão: $e');
+  }
 
   // 5. Fetch Profiles
   List<Profile> profiles = [];
   try {
     profiles = await profileService.getProfiles();
-  } catch (_) {}
+  } catch (e) {
+    debugPrint('Erro ao carregar perfis para impressão: $e');
+  }
+
+  // 6. Fetch Company Info
+  CompanyInfo? companyInfo;
+  try {
+    companyInfo = await settingsService.getCompanyInfo();
+  } catch (e) {
+    debugPrint('Erro ao carregar dados da empresa para impressão: $e');
+  }
 
   return OSPrintData(
     order: order,
@@ -64,8 +62,28 @@ final osPrintDataProvider = FutureProvider.family<OSPrintData, String>((ref, id)
     assignments: assignments,
     history: history,
     profiles: profiles,
+    companyInfo: companyInfo,
   );
 });
+
+/// Container class to hold all data needed to render the Service Order PDF.
+class OSPrintData {
+  final ServiceOrder order;
+  final Customer? customer;
+  final List<OrderAssignment> assignments;
+  final List<StatusHistory> history;
+  final List<Profile> profiles;
+  final CompanyInfo? companyInfo;
+
+  OSPrintData({
+    required this.order,
+    this.customer,
+    this.assignments = const [],
+    this.history = const [],
+    this.profiles = const [],
+    this.companyInfo,
+  });
+}
 
 class OSPrintScreen extends ConsumerWidget {
   final String id;
@@ -89,6 +107,7 @@ class OSPrintScreen extends ConsumerWidget {
               assignments: data.assignments,
               history: data.history,
               profiles: data.profiles,
+              companyInfo: data.companyInfo,
             ),
             allowSharing: true,
             allowPrinting: true,
