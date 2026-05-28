@@ -154,16 +154,16 @@ class _Body extends StatelessWidget {
       final sorted = List<StatusHistory>.from(data.history)..sort((a, b) => a.changedAt.compareTo(b.changedAt));
       final first = sorted.first;
       final creator = data.profiles.firstWhere((p) => p.id == first.changedBy,
-          orElse: () => Profile(id: '', email: '', name: '', role: '', createdAt: DateTime(1970)));
-      if (creator.name.isNotEmpty && creator.role.toLowerCase() == 'vendedor') {
+          orElse: () => Profile(id: '', name: '', roles: [], createdAt: DateTime(1970)));
+      if (creator.name.isNotEmpty && creator.hasRole('vendedor')) {
         vendedor = creator.name;
       } else if (first.changedByName != null) {
         vendedor = first.changedByName!;
       }
     }
     if (vendedor == 'Não atribuído') {
-      final seller = data.profiles.firstWhere((p) => p.role.toLowerCase() == 'vendedor',
-          orElse: () => Profile(id: '', email: '', name: '', role: '', createdAt: DateTime(1970)));
+      final seller = data.profiles.firstWhere((p) => p.hasRole('vendedor'),
+          orElse: () => Profile(id: '', name: '', roles: [], createdAt: DateTime(1970)));
       if (seller.name.isNotEmpty) vendedor = seller.name;
     }
 

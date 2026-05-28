@@ -15,7 +15,7 @@ class AppDrawer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(currentProfileProvider);
     final profile      = profileAsync.value;
-    final isAdmin      = profile?.role == 'admin';
+    final isAdmin      = profile?.hasRole('admin') ?? false;
 
     String location = '/';
     try { location = GoRouterState.of(context).matchedLocation; } catch (_) {}

@@ -70,7 +70,7 @@ void main() {
         id: 'user-seller-id',
         email: 'valdir@petra.com.br',
         name: 'Valdir Vendedor',
-        role: 'vendedor',
+        roles: ['vendedor'],
         createdAt: DateTime(2026, 5, 1),
       ),
     ];

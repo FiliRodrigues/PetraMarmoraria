@@ -28,6 +28,19 @@ class EmployeeNotifier extends StateNotifier<AsyncValue<List<Profile>>> {
     }
   }
 
+  Future<void> createEmployee({
+    required String name,
+    required List<String> roles,
+    String? phone,
+  }) async {
+    try {
+      await _service.createProfile(name: name, roles: roles, phone: phone);
+      await loadEmployees();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<void> updateEmployee(Profile profile) async {
     try {
       await _service.updateProfile(profile);

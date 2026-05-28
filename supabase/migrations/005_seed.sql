@@ -31,11 +31,11 @@ ON CONFLICT (id) DO NOTHING;
 
 -- 2. Update generated profiles to set custom roles, names, phone numbers, and ensure status is active
 -- (The trigger "on_auth_user_created" auto-created these, we configure them to test RLS and roles)
-UPDATE public.profiles SET role = 'admin', name = 'Administrador Petra', phone = '(11) 99999-1111' WHERE id = 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d';
-UPDATE public.profiles SET role = 'vendedor', name = 'Vendedor Petra', phone = '(11) 99999-2222' WHERE id = 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e';
-UPDATE public.profiles SET role = 'cortador', name = 'Cortador Petra', phone = '(11) 99999-3333' WHERE id = 'c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f';
-UPDATE public.profiles SET role = 'montador', name = 'Montador Petra', phone = '(11) 99999-4444' WHERE id = 'd4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f9a';
-UPDATE public.profiles SET role = 'entregador', name = 'Entregador Petra', phone = '(11) 99999-5555' WHERE id = 'e5f6a7b8-c9d0-1e2f-3a4b-5c6d7e8f9a0b';
+UPDATE public.profiles SET roles = ARRAY['admin'], name = 'Administrador Petra', phone = '(11) 99999-1111' WHERE id = 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d';
+UPDATE public.profiles SET roles = ARRAY['vendedor'], name = 'Vendedor Petra', phone = '(11) 99999-2222' WHERE id = 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e';
+UPDATE public.profiles SET roles = ARRAY['cortador'], name = 'Cortador Petra', phone = '(11) 99999-3333' WHERE id = 'c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f';
+UPDATE public.profiles SET roles = ARRAY['montador'], name = 'Montador Petra', phone = '(11) 99999-4444' WHERE id = 'd4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f9a';
+UPDATE public.profiles SET roles = ARRAY['entregador'], name = 'Entregador Petra', phone = '(11) 99999-5555' WHERE id = 'e5f6a7b8-c9d0-1e2f-3a4b-5c6d7e8f9a0b';
 
 -- 3. Seed Customers
 INSERT INTO public.customers (id, name, cpf_cnpj, phone, phone2, email, address, city, state, notes) VALUES

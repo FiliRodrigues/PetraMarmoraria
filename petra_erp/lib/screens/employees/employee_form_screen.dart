@@ -7,10 +7,8 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/validators.dart';
 import '../../models/profile.dart';
 import '../../providers/employee_provider.dart';
-import '../../providers/supabase_provider.dart';
 import '../../widgets/widgets.dart';
 
-/// Screen to create or edit an employee profile.
 class EmployeeFormScreen extends ConsumerStatefulWidget {
   final String? id;
 
@@ -25,25 +23,47 @@ class EmployeeFormScreen extends ConsumerStatefulWidget {
 
 class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  
+
   final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
   final _phoneController = TextEditingController();
 
-  String _selectedRole = 'vendedor';
+  final Set<String> _selectedRoles = {};
   bool _isActive = true;
   bool _isEditing = false;
   bool _isLoading = false;
   String? _errorMessage;
 
-  final List<String> _roles = [
+  static const _availableRoles = [
     'admin',
     'vendedor',
     'cortador',
     'montador',
     'entregador',
   ];
+
+  static const _roleLabels = {
+    'admin': 'Administrador',
+    'vendedor': 'Vendedor',
+    'cortador': 'Cortador',
+    'montador': 'Montador',
+    'entregador': 'Entregador',
+  };
+
+  static const _roleIcons = {
+    'admin': LucideIcons.shield,
+    'vendedor': LucideIcons.badgeDollarSign,
+    'cortador': LucideIcons.scissors,
+    'montador': LucideIcons.wrench,
+    'entregador': LucideIcons.truck,
+  };
+
+  static const _roleColors = <String, Color>{
+    'admin': AppColors.staleCrit,
+    'vendedor': AppColors.primary,
+    'cortador': AppColors.corte,
+    'montador': AppColors.montagem,
+    'entregador': AppColors.entrega,
+  };
 
   @override
   void initState() {
@@ -61,11 +81,8 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
         try {
           final profile = list.firstWhere((e) => e.id == widget.id);
           _nameController.text = profile.name;
-          _emailController.text = profile.email;
           _phoneController.text = profile.phone ?? '';
-          _selectedRole = _roles.contains(profile.role.toLowerCase()) 
-              ? profile.role.toLowerCase() 
-              : 'vendedor';
+          _selectedRoles.addAll(profile.roles);
           _isActive = profile.active;
         } catch (_) {
           _errorMessage = 'Funcionário não encontrado no cache.';
@@ -80,14 +97,19 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
 
   Future<void> _saveEmployee() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_selectedRoles.isEmpty) {
+      setState(() {
+        _errorMessage = 'Selecione pelo menos uma função.';
+      });
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -98,39 +120,21 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
       if (_isEditing) {
         final updatedProfile = Profile(
           id: widget.id!,
-          email: _emailController.text.trim(),
           name: _nameController.text.trim(),
-          role: _selectedRole,
+          roles: _selectedRoles.toList(),
           phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
           active: _isActive,
           createdAt: DateTime.now(),
         );
-
         await ref.read(employeeProvider.notifier).updateEmployee(updatedProfile);
-        if (mounted) {
-          context.pop();
-        }
+        if (mounted) context.pop();
       } else {
-        final profileService = ref.read(profileServiceProvider);
-        await profileService.createProfile(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
+        await ref.read(employeeProvider.notifier).createEmployee(
           name: _nameController.text.trim(),
-          role: _selectedRole,
+          roles: _selectedRoles.toList(),
           phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
         );
-
-        await ref.read(employeeProvider.notifier).loadEmployees();
-
-        if (mounted) {
-          context.pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Funcionário ${_nameController.text.trim()} cadastrado com sucesso!'),
-              backgroundColor: AppColors.staleOk,
-            ),
-          );
-        }
+        if (mounted) context.pop();
       }
     } catch (e) {
       setState(() {
@@ -180,7 +184,6 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                       const SizedBox(height: 16.0),
                     ],
 
-                    // Name
                     TextFormField(
                       controller: _nameController,
                       decoration: const InputDecoration(
@@ -191,35 +194,6 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                     ),
                     const SizedBox(height: 16.0),
 
-                    // Email (restricted from editing)
-                    TextFormField(
-                      controller: _emailController,
-                      enabled: !_isEditing,
-                      decoration: const InputDecoration(
-                        labelText: 'E-mail *',
-                        prefixIcon: Icon(LucideIcons.mail, size: 16),
-                        helperText: 'O e-mail é utilizado para o login do funcionário.',
-                      ),
-                      validator: Validators.validateEmail,
-                    ),
-                    const SizedBox(height: 16.0),
-
-                    // Password (visible only when creating)
-                    if (!_isEditing) ...[
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Senha de Acesso *',
-                          prefixIcon: Icon(LucideIcons.lock, size: 16),
-                          helperText: 'A senha deve possuir pelo menos 6 caracteres.',
-                        ),
-                        validator: Validators.validatePassword,
-                      ),
-                      const SizedBox(height: 16.0),
-                    ],
-
-                    // Phone
                     TextFormField(
                       controller: _phoneController,
                       decoration: const InputDecoration(
@@ -227,33 +201,50 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                         prefixIcon: Icon(LucideIcons.phone, size: 16),
                       ),
                     ),
-                    const SizedBox(height: 16.0),
+                    const SizedBox(height: 20.0),
 
-                    // Role Dropdown
-                    DropdownButtonFormField<String>(
-                      value: _selectedRole,
-                      decoration: const InputDecoration(
-                        labelText: 'Cargo / Função *',
-                        prefixIcon: Icon(LucideIcons.briefcase, size: 16),
-                      ),
-                      items: _roles.map((role) {
-                        return DropdownMenuItem<String>(
-                          value: role,
-                          child: Text(role.toUpperCase()),
+                    Text('Funções *',
+                      style: AppTheme.syne(fontSize: 14, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 8.0),
+
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _availableRoles.map((role) {
+                        final selected = _selectedRoles.contains(role);
+                        final color = _roleColors[role] ?? AppColors.primary;
+                        return FilterChip(
+                          selected: selected,
+                          label: Text(_roleLabels[role] ?? role,
+                            style: AppTheme.jakarta(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: selected ? Colors.white : AppColors.textSecondary,
+                            ),
+                          ),
+                          selectedColor: color,
+                          checkmarkColor: Colors.white,
+                          backgroundColor: color.withValues(alpha: 0.1),
+                          side: BorderSide(color: selected ? color : AppColors.border),
+                          avatar: Icon(_roleIcons[role] ?? LucideIcons.user,
+                            size: 16,
+                            color: selected ? Colors.white : color,
+                          ),
+                          onSelected: (val) {
+                            setState(() {
+                              if (val) {
+                                _selectedRoles.add(role);
+                              } else {
+                                _selectedRoles.remove(role);
+                              }
+                            });
+                          },
                         );
                       }).toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _selectedRole = val;
-                          });
-                        }
-                      },
                     ),
-                    const SizedBox(height: 16.0),
-
-                    // Active Toggle (Visible only when editing)
                     if (_isEditing) ...[
+                      const SizedBox(height: 20.0),
                       Row(
                         children: [
                           Text(
@@ -273,12 +264,10 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                           Text(_isActive ? 'ATIVO' : 'INATIVO'),
                         ],
                       ),
-                      const SizedBox(height: 16.0),
                     ],
 
                     const SizedBox(height: 24.0),
 
-                    // Buttons Row
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [

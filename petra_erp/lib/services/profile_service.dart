@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import '../models/profile.dart';
 
 class ProfileService {
@@ -23,7 +24,7 @@ class ProfileService {
       final response = await _client
           .from('profiles')
           .select()
-          .eq('role', role)
+          .contains('roles', [role])
           .eq('active', true)
           .order('name', ascending: true);
       return (response as List).map((e) => Profile.fromMap(e)).toList();
@@ -41,22 +42,24 @@ class ProfileService {
     }
   }
 
-  Future<Map<String, dynamic>> createProfile({
-    required String email,
-    required String password,
+  Future<Profile> createProfile({
     required String name,
-    required String role,
+    required List<String> roles,
     String? phone,
   }) async {
     try {
-      final response = await _client.functions.invoke('create-employee', body: {
-        'email': email,
-        'password': password,
+      final id = const Uuid().v4();
+      final now = DateTime.now().toIso8601String();
+      final data = {
+        'id': id,
         'name': name,
-        'role': role,
-        if (phone != null && phone.isNotEmpty) 'phone': phone,
-      });
-      return response.data as Map<String, dynamic>;
+        'roles': roles,
+        'phone': phone,
+        'active': true,
+        'created_at': now,
+      };
+      final response = await _client.from('profiles').insert(data).select().single();
+      return Profile.fromMap(response);
     } catch (e) {
       throw Exception('Falha ao criar funcionário: ${e.toString()}');
     }

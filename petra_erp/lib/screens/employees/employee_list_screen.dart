@@ -44,7 +44,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
 
     return currentProfileAsync.when(
       data: (profile) {
-        if (profile == null || profile.role.toLowerCase() != 'admin') {
+        if (profile == null || !profile.hasRole('admin')) {
           return const Scaffold(
             body: Center(
               child: Padding(
@@ -81,8 +81,8 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
               final filtered = employees.where((emp) {
                 final query = _searchText.toLowerCase();
                 final nameMatch = emp.name.toLowerCase().contains(query);
-                final roleMatch = emp.role.toLowerCase().contains(query);
-                final emailMatch = emp.email.toLowerCase().contains(query);
+                final roleMatch = emp.roles.any((r) => r.toLowerCase().contains(query));
+                final emailMatch = (emp.email ?? '').toLowerCase().contains(query);
                 return nameMatch || roleMatch || emailMatch;
               }).toList();
 
@@ -149,7 +149,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                                     ],
                                   ),
                                   subtitle: Text(
-                                    'Cargo: ${emp.role.toUpperCase()} | ${emp.email}',
+                                    'Funções: ${emp.roles.map((r) => r.toUpperCase()).join(', ')} | ${emp.email ?? 'Sem email'}',
                                     style: AppTheme.jakarta(fontSize: 12, color: AppColors.textMuted)),
                                   trailing: Row(
                                     mainAxisSize: MainAxisSize.min,

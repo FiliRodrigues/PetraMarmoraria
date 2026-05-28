@@ -73,9 +73,8 @@ class FakeProfileService implements ProfileService {
   @override
   Future<Profile> getProfileById(String id) async => Profile(
     id: id,
-    email: 'test@petramarmoraria.com',
     name: 'Admin Test',
-    role: 'admin',
+    roles: ['admin'],
     createdAt: DateTime.now(),
   );
   @override
@@ -85,13 +84,17 @@ class FakeProfileService implements ProfileService {
   @override
   Future<Profile> updateProfile(Profile profile) async => profile;
   @override
-  Future<Map<String, dynamic>> createProfile({
-    required String email,
-    required String password,
+  Future<Profile> createProfile({
     required String name,
-    required String role,
+    required List<String> roles,
     String? phone,
-  }) async => {'id': 'fake-id', 'email': email, 'name': name, 'role': role};
+  }) async => Profile(
+    id: 'fake-id',
+    name: name,
+    roles: roles,
+    phone: phone,
+    createdAt: DateTime.now(),
+  );
 }
 
 class FakeServiceOrderService implements ServiceOrderService {

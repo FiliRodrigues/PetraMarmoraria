@@ -42,14 +42,13 @@ class TeamResolver {
         (p) => p.id == firstEntry.changedBy,
         orElse: () => Profile(
           id: '',
-          email: '',
           name: '',
-          role: '',
+          roles: [],
           createdAt: DateTime(1970),
         ),
       );
       if (creatorProfile.name.isNotEmpty &&
-          creatorProfile.role.toLowerCase() == 'vendedor') {
+          creatorProfile.hasRole('vendedor')) {
         team.vendedor = creatorProfile.name;
       } else if (firstEntry.changedByName != null) {
         team.vendedor = firstEntry.changedByName!;
@@ -58,12 +57,11 @@ class TeamResolver {
 
     if (team.vendedor == 'Não atribuído') {
       final sellerProfile = profiles.firstWhere(
-        (p) => p.role.toLowerCase() == 'vendedor',
+        (p) => p.hasRole('vendedor'),
         orElse: () => Profile(
           id: '',
-          email: '',
           name: '',
-          role: '',
+          roles: [],
           createdAt: DateTime(1970),
         ),
       );

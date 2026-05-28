@@ -118,13 +118,12 @@ Future<Uint8List> generateServiceOrderPdf({
       (p) => p.id == firstEntry.changedBy,
       orElse: () => Profile(
         id: '',
-        email: '',
         name: '',
-        role: '',
+        roles: [],
         createdAt: DateTime(1970),
       ),
     );
-    if (creatorProfile.name.isNotEmpty && creatorProfile.role.toLowerCase() == 'vendedor') {
+    if (creatorProfile.name.isNotEmpty && creatorProfile.hasRole('vendedor')) {
       vendedor = creatorProfile.name;
     } else if (firstEntry.changedByName != null) {
       vendedor = firstEntry.changedByName!;
@@ -133,12 +132,11 @@ Future<Uint8List> generateServiceOrderPdf({
 
   if (vendedor == 'Não atribuído') {
     final sellerProfile = profiles.firstWhere(
-      (p) => p.role.toLowerCase() == 'vendedor',
+      (p) => p.hasRole('vendedor'),
       orElse: () => Profile(
         id: '',
-        email: '',
         name: '',
-        role: '',
+        roles: [],
         createdAt: DateTime(1970),
       ),
     );
