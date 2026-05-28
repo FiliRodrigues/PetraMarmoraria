@@ -64,7 +64,9 @@ class StatusHistory {
       toStatus: map['to_status'] as String,
       changedBy: map['changed_by'] as String,
       changedByName: changedByName ?? map['changedByName'] as String? ?? (map['profiles'] != null ? map['profiles']['name'] as String? : null),
-      changedAt: DateTime.parse(map['changed_at'] as String),
+      changedAt: map['changed_at'] != null
+          ? DateTime.parse(map['changed_at'] as String)
+          : DateTime.now(),
       notes: map['notes'] as String?,
     );
   }

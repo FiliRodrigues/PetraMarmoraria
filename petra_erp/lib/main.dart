@@ -9,13 +9,11 @@ Future<void> main() async {
   const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
   const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
-  assert(
-    supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty,
-    'Faltam SUPABASE_URL e/ou SUPABASE_ANON_KEY. '
-    'Rode com: flutter run -d chrome '
-    '--dart-define=SUPABASE_URL=https://xxx.supabase.co '
-    '--dart-define=SUPABASE_ANON_KEY=sb_publishable_xxx',
-  );
+  // Validate in all build modes (asserts are stripped from release builds).
+  if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
+    runApp(const _ConfigErrorApp());
+    return;
+  }
 
   await Supabase.initialize(
     url: supabaseUrl,
@@ -27,4 +25,32 @@ Future<void> main() async {
       child: PetraApp(),
     ),
   );
+}
+
+/// Shown when Supabase credentials are missing, so the app fails with a clear
+/// message instead of crashing obscurely inside Supabase.initialize.
+class _ConfigErrorApp extends StatelessWidget {
+  const _ConfigErrorApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24.0),
+            child: Text(
+              'Configuração ausente: defina SUPABASE_URL e SUPABASE_ANON_KEY.\n\n'
+              'Rode com:\n'
+              'flutter run -d chrome '
+              '--dart-define=SUPABASE_URL=https://xxx.supabase.co '
+              '--dart-define=SUPABASE_ANON_KEY=sb_publishable_xxx',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

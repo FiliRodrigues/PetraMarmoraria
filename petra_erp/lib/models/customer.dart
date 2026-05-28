@@ -75,16 +75,18 @@ class Customer {
   factory Customer.fromMap(Map<String, dynamic> map) {
     return Customer(
       id: map['id'] as String,
-      name: map['name'] as String,
+      name: map['name'] as String? ?? '',
       cpfCnpj: map['cpf_cnpj'] as String?,
-      phone: map['phone'] as String,
+      phone: map['phone'] as String? ?? '',
       phone2: map['phone2'] as String?,
       email: map['email'] as String?,
       address: map['address'] as String?,
       city: map['city'] as String?,
       state: map['state'] as String? ?? 'SP',
       notes: map['notes'] as String?,
-      createdAt: DateTime.parse(map['created_at'] as String),
+      createdAt: map['created_at'] != null
+          ? DateTime.parse(map['created_at'] as String)
+          : DateTime.now(),
     );
   }
 

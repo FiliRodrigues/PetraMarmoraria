@@ -79,7 +79,10 @@ class OSDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('OS $id'.substring(0, id.length > 8 ? 8 : id.length)),
+        title: detailDataAsync.maybeWhen(
+          data: (data) => Text('OS ${data.order.formattedNumber}'),
+          orElse: () => const Text('Detalhes da OS'),
+        ),
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.white,
         actions: [

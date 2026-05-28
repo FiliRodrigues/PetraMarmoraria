@@ -55,12 +55,14 @@ class Product {
   factory Product.fromMap(Map<String, dynamic> map) {
     return Product(
       id: map['id'] as String,
-      name: map['name'] as String,
+      name: map['name'] as String? ?? '',
       type: map['type'] as String? ?? 'marmore',
       unitPrice: (map['unit_price'] as num? ?? 0.0).toDouble(),
       unit: map['unit'] as String? ?? 'm2',
       active: map['active'] as bool? ?? true,
-      createdAt: DateTime.parse(map['created_at'] as String),
+      createdAt: map['created_at'] != null
+          ? DateTime.parse(map['created_at'] as String)
+          : DateTime.now(),
     );
   }
 

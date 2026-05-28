@@ -63,7 +63,9 @@ class OrderAssignment {
       stage: map['stage'] as String,
       employeeId: map['employee_id'] as String,
       employeeName: employeeName ?? map['employeeName'] as String? ?? (map['profiles'] != null ? map['profiles']['name'] as String? : null),
-      assignedAt: DateTime.parse(map['assigned_at'] as String),
+      assignedAt: map['assigned_at'] != null
+          ? DateTime.parse(map['assigned_at'] as String)
+          : DateTime.now(),
       completedAt: map['completed_at'] != null ? DateTime.parse(map['completed_at'] as String) : null,
       notes: map['notes'] as String?,
     );

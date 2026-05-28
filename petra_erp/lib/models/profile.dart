@@ -55,12 +55,14 @@ class Profile {
   factory Profile.fromMap(Map<String, dynamic> map) {
     return Profile(
       id: map['id'] as String,
-      email: map['email'] as String,
-      name: map['name'] as String,
-      role: map['role'] as String,
+      email: map['email'] as String? ?? '',
+      name: map['name'] as String? ?? '',
+      role: map['role'] as String? ?? 'vendedor',
       phone: map['phone'] as String?,
       active: map['active'] as bool? ?? true,
-      createdAt: DateTime.parse(map['created_at'] as String),
+      createdAt: map['created_at'] != null
+          ? DateTime.parse(map['created_at'] as String)
+          : DateTime.now(),
     );
   }
 
