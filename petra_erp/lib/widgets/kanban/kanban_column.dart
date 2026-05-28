@@ -13,10 +13,15 @@ class KanbanColumn extends ConsumerWidget {
   final String status;
   final List<ServiceOrder> orders;
 
+  /// Quando true, a coluna ocupa a largura disponível (sem largura fixa),
+  /// permitindo distribuir N colunas igualmente em uma única tela.
+  final bool flexible;
+
   const KanbanColumn({
     super.key,
     required this.status,
     required this.orders,
+    this.flexible = false,
   });
 
   @override
@@ -46,8 +51,8 @@ class KanbanColumn extends ConsumerWidget {
         final isDesktop = MediaQuery.of(context).size.width > 900;
 
         return Container(
-          width: isDesktop ? 300.0 : null,
-          margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+          width: flexible ? null : (isDesktop ? 300.0 : null),
+          margin: const EdgeInsets.symmetric(horizontal: 5.0, vertical: 10.0),
           decoration: BoxDecoration(
             color: isHovered 
                 ? AppColors.secondary.withValues(alpha: 0.08) 

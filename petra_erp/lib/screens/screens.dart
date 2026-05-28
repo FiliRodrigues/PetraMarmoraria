@@ -4,6 +4,7 @@ export 'home/home_screen.dart';
 export 'customers/customer_list_screen.dart';
 export 'customers/customer_form_screen.dart';
 export 'customers/customer_detail_screen.dart';
+export 'service_orders/os_list_screen.dart';
 export 'service_orders/os_detail_screen.dart';
 export 'service_orders/os_form_screen.dart';
 export 'service_orders/os_print_screen.dart';

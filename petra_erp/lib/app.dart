@@ -71,7 +71,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/orders',
-            builder: (context, state) => const HomeScreen(),
+            builder: (context, state) => const OSListScreen(),
           ),
           GoRoute(
             path: '/orders/new',

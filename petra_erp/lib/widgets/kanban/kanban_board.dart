@@ -40,18 +40,18 @@ class KanbanBoard extends StatelessWidget {
     final isDesktop = width > 900;
 
     if (isDesktop) {
-      // Horizontal row for desktop screens
-      return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: statuses.map((status) {
-            return KanbanColumn(
+      // Distribui as colunas igualmente numa única tela (sem rolagem horizontal).
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: statuses.map((status) {
+          return Expanded(
+            child: KanbanColumn(
               status: status,
               orders: groupedOrders[status] ?? [],
-            );
-          }).toList(),
-        ),
+              flexible: true,
+            ),
+          );
+        }).toList(),
       );
     }
 

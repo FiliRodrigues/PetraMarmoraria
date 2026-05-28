@@ -1,0 +1,638 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../core/constants/os_status.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/utils/formatters.dart';
+import '../../models/service_order.dart';
+import '../../providers/os_provider.dart';
+import '../../widgets/widgets.dart';
+
+/// Lista de Ordens de Serviço em formato de tabela, com abas de status,
+/// busca e ações de criação. Replica o protótipo da tela "Ordens de Serviço".
+class OSListScreen extends ConsumerStatefulWidget {
+  const OSListScreen({super.key});
+
+  @override
+  ConsumerState<OSListScreen> createState() => _OSListScreenState();
+}
+
+class _OSListScreenState extends ConsumerState<OSListScreen> {
+  final _searchController = TextEditingController();
+  String _searchText = '';
+
+  /// `null` representa a aba "Todas".
+  String? _statusFilter;
+
+  // Abas exibidas na barra de status (subconjunto/ordem do protótipo).
+  static const List<String> _tabs = [
+    OSStatus.orcamento,
+    OSStatus.aprovado,
+    OSStatus.esperandoMaterial,
+    OSStatus.corte,
+    OSStatus.montagem,
+    OSStatus.entrega,
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() => _searchText = _searchController.text);
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ordersAsync = ref.watch(osProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Ordens de Serviço'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Recarregar',
+            onPressed: () => ref.read(osProvider.notifier).loadOrders(),
+          ),
+        ],
+      ),
+      body: ordersAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) =>
+            Center(child: Text('Erro ao carregar ordens: $err')),
+        data: (orders) {
+          final all = [...orders]
+            ..sort((a, b) => a.displayNumber.compareTo(b.displayNumber));
+
+          final query = _searchText.trim().toLowerCase();
+          final searched = query.isEmpty
+              ? all
+              : all.where((o) {
+                  final num = o.formattedNumber.toLowerCase();
+                  final client = (o.customerName ?? '').toLowerCase();
+                  final material = (o.material ?? '').toLowerCase();
+                  final desc = o.description.toLowerCase();
+                  return num.contains(query) ||
+                      client.contains(query) ||
+                      material.contains(query) ||
+                      desc.contains(query);
+                }).toList();
+
+          final visible = _statusFilter == null
+              ? searched
+              : searched.where((o) => o.status == _statusFilter).toList();
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _Header(
+                title: 'Ordens de Serviço',
+                subtitle: '${all.length} ordens cadastradas',
+                searchController: _searchController,
+                searchHint: 'Buscar nº, cliente, material...',
+                newLabel: 'Nova OS',
+                onNew: () => context.push('/orders/new'),
+              ),
+              _StatusTabs(
+                tabs: _tabs,
+                all: searched,
+                selected: _statusFilter,
+                onSelect: (s) => setState(() => _statusFilter = s),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: visible.isEmpty
+                    ? const EmptyState(
+                        title: 'Nenhuma ordem encontrada',
+                        message:
+                            'Ajuste os filtros ou cadastre uma nova ordem de serviço.',
+                        icon: Icons.assignment_outlined,
+                      )
+                    : _OrdersTable(orders: visible),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ── Tabela ──────────────────────────────────────────────────────────────────
+
+class _OrdersTable extends StatelessWidget {
+  final List<ServiceOrder> orders;
+  const _OrdersTable({required this.orders});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+            border: Border.all(color: AppColors.border),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              const _TableHeaderRow(),
+              for (var i = 0; i < orders.length; i++)
+                _OrderRow(order: orders[i], even: i.isEven),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TableHeaderRow extends StatelessWidget {
+  const _TableHeaderRow();
+
+  @override
+  Widget build(BuildContext context) {
+    TextStyle h() => AppTheme.jakarta(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textMuted,
+        );
+    Widget cell(String label, int flex, {Alignment align = Alignment.centerLeft}) =>
+        Expanded(
+          flex: flex,
+          child: Align(
+            alignment: align,
+            child: Text(label.toUpperCase(), style: h()),
+          ),
+        );
+
+    return Container(
+      color: AppColors.surfaceElevated,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          cell('OS #', 12),
+          cell('Cliente', 22),
+          cell('Descrição', 28),
+          cell('Status', 18),
+          cell('Prazo', 14),
+          cell('Valor', 16, align: Alignment.centerRight),
+          cell('Tempo', 10, align: Alignment.centerRight),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrderRow extends StatefulWidget {
+  final ServiceOrder order;
+  final bool even;
+  const _OrderRow({required this.order, required this.even});
+
+  @override
+  State<_OrderRow> createState() => _OrderRowState();
+}
+
+class _OrderRowState extends State<_OrderRow> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final o = widget.order;
+    final baseBg = widget.even ? AppColors.surface : AppColors.background;
+    final bg = _hover ? AppColors.accent.withValues(alpha: 0.06) : baseBg;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        onTap: () => context.push('/orders/${o.id}'),
+        child: Container(
+          color: bg,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          child: Row(
+            children: [
+              Expanded(
+                flex: 12,
+                child: Text(
+                  o.formattedNumber,
+                  style: AppTheme.numeric(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 22,
+                child: Text(
+                  o.customerName ?? '—',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.jakarta(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 28,
+                child: Text(
+                  o.description.isEmpty ? '—' : o.description,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.jakarta(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 18,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: StatusBadge(status: o.status),
+                ),
+              ),
+              Expanded(flex: 14, child: _DeadlineCell(order: o)),
+              Expanded(
+                flex: 16,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    Formatters.formatCurrency(o.totalValue),
+                    style: AppTheme.numeric(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 10,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: _StaleBadge(days: o.daysStale),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DeadlineCell extends StatelessWidget {
+  final ServiceOrder order;
+  const _DeadlineCell({required this.order});
+
+  @override
+  Widget build(BuildContext context) {
+    if (order.status == OSStatus.entrega) {
+      return Text(
+        '✓ Entregue',
+        style: AppTheme.jakarta(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: AppColors.success,
+        ),
+      );
+    }
+
+    final date = order.scheduledDate;
+    if (date == null) {
+      return Text(
+        '—',
+        style: AppTheme.jakarta(fontSize: 12, color: AppColors.textMuted),
+      );
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final overdue = date.isBefore(today);
+    final dd = date.day.toString().padLeft(2, '0');
+    final mm = date.month.toString().padLeft(2, '0');
+
+    return Text(
+      '$dd/$mm',
+      style: AppTheme.jakarta(
+        fontSize: 12,
+        fontWeight: overdue ? FontWeight.w700 : FontWeight.w500,
+        color: overdue ? AppColors.error : AppColors.textSecondary,
+      ),
+    );
+  }
+}
+
+class _StaleBadge extends StatelessWidget {
+  final int days;
+  const _StaleBadge({required this.days});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = AppColors.stalenessColor(days);
+    final label = days <= 0 ? 'Hoje' : '${days}d';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: AppTheme.numeric(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: color,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Abas de status ────────────────────────────────────────────────────────────
+
+class _StatusTabs extends StatelessWidget {
+  final List<String> tabs;
+  final List<ServiceOrder> all;
+  final String? selected;
+  final ValueChanged<String?> onSelect;
+
+  const _StatusTabs({
+    required this.tabs,
+    required this.all,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          _Tab(
+            label: 'Todas',
+            count: all.length,
+            color: AppColors.accent,
+            active: selected == null,
+            onTap: () => onSelect(null),
+          ),
+          for (final s in tabs)
+            _Tab(
+              label: OSStatus.labels[s] ?? s,
+              count: all.where((o) => o.status == s).length,
+              color: AppColors.statusColors(s).color,
+              active: selected == s,
+              onTap: () => onSelect(s),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Tab extends StatelessWidget {
+  final String label;
+  final int count;
+  final Color color;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _Tab({
+    required this.label,
+    required this.count,
+    required this.color,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(right: 18),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: active ? color : Colors.transparent,
+              width: 2.5,
+            ),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: AppTheme.jakarta(
+                fontSize: 12.5,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w600,
+                color: active ? color : AppColors.textMuted,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: active
+                    ? color.withValues(alpha: 0.14)
+                    : AppColors.surfaceElevated,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '$count',
+                style: AppTheme.numeric(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  color: active ? color : AppColors.textMuted,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Cabeçalho compartilhado ─────────────────────────────────────────────────
+
+class _Header extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final TextEditingController searchController;
+  final String searchHint;
+  final String newLabel;
+  final VoidCallback onNew;
+
+  const _Header({
+    required this.title,
+    required this.subtitle,
+    required this.searchController,
+    required this.searchHint,
+    required this.newLabel,
+    required this.onNew,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 560;
+          final titleBlock = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                style: AppTheme.syne(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: AppTheme.jakarta(
+                  fontSize: 11.5,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ],
+          );
+
+          final actions = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: narrow ? 180 : 240,
+                child: SearchField(
+                  controller: searchController,
+                  hint: searchHint,
+                ),
+              ),
+              const SizedBox(width: 10),
+              NewButton(label: newLabel, onPressed: onNew),
+            ],
+          );
+
+          if (narrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                titleBlock,
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: SearchField(
+                        controller: searchController,
+                        hint: searchHint,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    NewButton(label: newLabel, onPressed: onNew),
+                  ],
+                ),
+              ],
+            );
+          }
+
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [titleBlock, actions],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Campo de busca arredondado reutilizável.
+class SearchField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  const SearchField({super.key, required this.controller, required this.hint});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 40,
+      child: TextField(
+        controller: controller,
+        style: AppTheme.jakarta(fontSize: 13),
+        decoration: InputDecoration(
+          isDense: true,
+          hintText: hint,
+          filled: true,
+          fillColor: AppColors.surface,
+          prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.textMuted),
+          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            borderSide: const BorderSide(color: AppColors.border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            borderSide: const BorderSide(color: AppColors.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            borderSide: const BorderSide(color: AppColors.borderFocus, width: 1.5),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Botão "Novo X" em âmbar com ícone +.
+class NewButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onPressed;
+  const NewButton({super.key, required this.label, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 40,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(Icons.add, size: 18),
+        label: Text(label),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.accent,
+          foregroundColor: AppColors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+          ),
+          textStyle: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
+}
