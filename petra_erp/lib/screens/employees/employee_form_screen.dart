@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/validators.dart';
 import '../../models/profile.dart';
 import '../../providers/employee_provider.dart';
+import '../../providers/supabase_provider.dart';
 import '../../widgets/widgets.dart';
 
 /// Screen to create or edit an employee profile.
@@ -94,7 +96,6 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
 
     try {
       if (_isEditing) {
-        // Edit existing profile
         final updatedProfile = Profile(
           id: widget.id!,
           email: _emailController.text.trim(),
@@ -102,7 +103,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
           role: _selectedRole,
           phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
           active: _isActive,
-          createdAt: DateTime.now(), // Ignored in update
+          createdAt: DateTime.now(),
         );
 
         await ref.read(employeeProvider.notifier).updateEmployee(updatedProfile);
@@ -110,39 +111,23 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
           context.pop();
         }
       } else {
-        // Create new auth account. Warn first!
-        final supabase = Supabase.instance.client;
-        
-        // Call signup with user metadata to trigger profile creation
-        await supabase.auth.signUp(
+        final profileService = ref.read(profileServiceProvider);
+        await profileService.createProfile(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
-          data: {
-            'name': _nameController.text.trim(),
-            'role': _selectedRole,
-            'phone': _phoneController.text.trim(),
-          },
+          name: _nameController.text.trim(),
+          role: _selectedRole,
+          phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
         );
 
+        await ref.read(employeeProvider.notifier).loadEmployees();
+
         if (mounted) {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => AlertDialog(
-              title: const Text('Funcionário Cadastrado'),
-              content: const Text(
-                'O funcionário foi cadastrado com sucesso! Como as contas são vinculadas ao e-mail, '
-                'você precisará logar novamente para retornar à sua conta de Administrador.',
-              ),
-              actions: [
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(); // pop dialog
-                    context.go('/login'); // direct to login
-                  },
-                  child: const Text('OK'),
-                ),
-              ],
+          context.pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Funcionário ${_nameController.text.trim()} cadastrado com sucesso!'),
+              backgroundColor: AppColors.staleOk,
             ),
           );
         }
@@ -189,17 +174,8 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                         ),
                         child: Text(
                           _errorMessage!,
-                          style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+                          style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.error),
                         ),
-                      ),
-                      const SizedBox(height: 16.0),
-                    ],
-
-                    if (!_isEditing) ...[
-                      const AlertBanner(
-                        message: 'Atenção: Ao criar um novo funcionário, você será desconectado temporariamente '
-                            'devido ao fluxo de registro do Supabase.',
-                        type: 'warning',
                       ),
                       const SizedBox(height: 16.0),
                     ],
@@ -209,7 +185,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                       controller: _nameController,
                       decoration: const InputDecoration(
                         labelText: 'Nome Completo *',
-                        prefixIcon: Icon(Icons.person),
+                        prefixIcon: Icon(LucideIcons.user, size: 16),
                       ),
                       validator: (val) => Validators.validateRequired(val, 'Nome'),
                     ),
@@ -221,7 +197,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                       enabled: !_isEditing,
                       decoration: const InputDecoration(
                         labelText: 'E-mail *',
-                        prefixIcon: Icon(Icons.email),
+                        prefixIcon: Icon(LucideIcons.mail, size: 16),
                         helperText: 'O e-mail é utilizado para o login do funcionário.',
                       ),
                       validator: Validators.validateEmail,
@@ -235,7 +211,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                         obscureText: true,
                         decoration: const InputDecoration(
                           labelText: 'Senha de Acesso *',
-                          prefixIcon: Icon(Icons.lock),
+                          prefixIcon: Icon(LucideIcons.lock, size: 16),
                           helperText: 'A senha deve possuir pelo menos 6 caracteres.',
                         ),
                         validator: Validators.validatePassword,
@@ -248,7 +224,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                       controller: _phoneController,
                       decoration: const InputDecoration(
                         labelText: 'Telefone de Contato',
-                        prefixIcon: Icon(Icons.phone),
+                        prefixIcon: Icon(LucideIcons.phone, size: 16),
                       ),
                     ),
                     const SizedBox(height: 16.0),
@@ -258,7 +234,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                       value: _selectedRole,
                       decoration: const InputDecoration(
                         labelText: 'Cargo / Função *',
-                        prefixIcon: Icon(Icons.work),
+                        prefixIcon: Icon(LucideIcons.briefcase, size: 16),
                       ),
                       items: _roles.map((role) {
                         return DropdownMenuItem<String>(
@@ -280,14 +256,14 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                     if (_isEditing) ...[
                       Row(
                         children: [
-                          const Text(
+                          Text(
                             'Status de Ativação:',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                            style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w700),
                           ),
                           const Spacer(),
                           Switch(
                             value: _isActive,
-                            activeColor: AppColors.secondary,
+                            activeColor: AppColors.accent,
                             onChanged: (val) {
                               setState(() {
                                 _isActive = val;
@@ -308,7 +284,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                       children: [
                         TextButton(
                           onPressed: () => context.pop(),
-                          child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+                          child: Text('Cancelar', style: AppTheme.jakarta(fontSize: 13, color: AppColors.textMuted)),
                         ),
                         const SizedBox(width: 16.0),
                         ElevatedButton(
@@ -327,49 +303,6 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// Helper banner for warning user
-class AlertBanner extends StatelessWidget {
-  final String message;
-  final String type;
-
-  const AlertBanner({
-    super.key,
-    required this.message,
-    required this.type,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12.0),
-      decoration: BoxDecoration(
-        color: type == 'warning' ? Colors.orange.withOpacity(0.1) : Colors.blue.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8.0),
-        border: Border.all(color: type == 'warning' ? Colors.orange : Colors.blue),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            type == 'warning' ? Icons.warning_amber : Icons.info_outline,
-            color: type == 'warning' ? Colors.orange : Colors.blue,
-          ),
-          const SizedBox(width: 12.0),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                color: type == 'warning' ? Colors.orange[900] : Colors.blue[900],
-                fontSize: 12.0,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

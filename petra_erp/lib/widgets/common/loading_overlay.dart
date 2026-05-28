@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 
-/// An overlay widget to block interactions and display a loading indicator during async operations.
 class LoadingOverlay extends StatelessWidget {
   final bool isLoading;
   final Widget child;
@@ -21,35 +22,25 @@ class LoadingOverlay extends StatelessWidget {
         if (isLoading)
           Stack(
             children: [
-              // Semi-transparent backdrop to block interaction
-              const ModalBarrier(
-                dismissible: false,
-                color: Colors.black38,
-              ),
+              const ModalBarrier(dismissible: false, color: Colors.black38),
               Center(
-                child: Card(
-                  color: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12.0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    border: Border.all(color: AppColors.border),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const CircularProgressIndicator(),
-                        if (message != null) ...[
-                          const SizedBox(height: 16.0),
-                          Text(
-                            message!,
-                            style: const TextStyle(
-                              fontSize: 14.0,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(),
+                      if (message != null) ...[
+                        const SizedBox(height: 14),
+                        Text(message!,
+                          style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w500)),
                       ],
-                    ),
+                    ],
                   ),
                 ),
               ),

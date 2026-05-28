@@ -14,7 +14,7 @@ class ProductService {
           .order('name', ascending: true);
       return (response as List).map((e) => Product.fromMap(e)).toList();
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao buscar produtos: ${e.toString()}');
     }
   }
 
@@ -23,7 +23,7 @@ class ProductService {
       final response = await _client.from('products').select().eq('id', id).single();
       return Product.fromMap(response);
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao buscar produto: ${e.toString()}');
     }
   }
 
@@ -33,7 +33,7 @@ class ProductService {
       final response = await _client.from('products').insert(data).select().single();
       return Product.fromMap(response);
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao criar produto: ${e.toString()}');
     }
   }
 
@@ -48,7 +48,7 @@ class ProductService {
           .single();
       return Product.fromMap(response);
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao atualizar produto: ${e.toString()}');
     }
   }
 
@@ -56,7 +56,7 @@ class ProductService {
     try {
       await _client.from('products').delete().eq('id', id);
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao excluir produto: ${e.toString()}');
     }
   }
 }

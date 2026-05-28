@@ -14,7 +14,7 @@ class CustomerService {
           .order('name', ascending: true);
       return (response as List).map((e) => Customer.fromMap(e)).toList();
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao buscar clientes: ${e.toString()}');
     }
   }
 
@@ -23,7 +23,7 @@ class CustomerService {
       final response = await _client.from('customers').select().eq('id', id).single();
       return Customer.fromMap(response);
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao buscar cliente: ${e.toString()}');
     }
   }
 
@@ -33,7 +33,7 @@ class CustomerService {
       final response = await _client.from('customers').insert(data).select().single();
       return Customer.fromMap(response);
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao criar cliente: ${e.toString()}');
     }
   }
 
@@ -48,7 +48,7 @@ class CustomerService {
           .single();
       return Customer.fromMap(response);
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao atualizar cliente: ${e.toString()}');
     }
   }
 
@@ -56,7 +56,7 @@ class CustomerService {
     try {
       await _client.from('customers').delete().eq('id', id);
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao excluir cliente: ${e.toString()}');
     }
   }
 }

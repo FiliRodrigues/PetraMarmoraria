@@ -116,3 +116,5 @@ final osHistoryProvider = FutureProvider.family<List<StatusHistory>, String>((re
   final service = ref.watch(serviceOrderServiceProvider);
   return await service.getStatusHistory(orderId);
 });
+
+final orderMonthFilterProvider = StateProvider<({int month, int year})?>((ref) => null);

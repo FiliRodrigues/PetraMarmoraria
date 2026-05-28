@@ -9,19 +9,27 @@ class ServiceOrderService {
 
   ServiceOrderService(this._client);
 
-  // Fetch all OS, including the client join
-  Future<List<ServiceOrder>> getServiceOrders() async {
+  Future<List<ServiceOrder>> getServiceOrders({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     try {
-      final response = await _client
+      var query = _client
           .from('service_orders')
-          .select('*, customers(name)')
-          .order('queue_position', ascending: true);
+          .select('*, customers(name)');
+      if (fromDate != null) {
+        query = query.gte('created_at', fromDate.toIso8601String());
+      }
+      if (toDate != null) {
+        query = query.lte('created_at', toDate.toIso8601String());
+      }
+      final response = await query.order('queue_position', ascending: true);
       return (response as List).map((e) {
         final customerName = e['customers'] != null ? e['customers']['name'] as String? : null;
         return ServiceOrder.fromMap(e, customerName: customerName);
       }).toList();
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao buscar OS: ${e.toString()}');
     }
   }
 
@@ -43,7 +51,7 @@ class ServiceOrderService {
       final customerName = response['customers'] != null ? response['customers']['name'] as String? : null;
       return ServiceOrder.fromMap(response, customerName: customerName);
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao buscar OS: ${e.toString()}');
     }
   }
 
@@ -53,7 +61,7 @@ class ServiceOrderService {
       final response = await _client.from('service_orders').insert(data).select().single();
       return ServiceOrder.fromMap(response);
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao criar OS: ${e.toString()}');
     }
   }
 
@@ -68,7 +76,7 @@ class ServiceOrderService {
           .single();
       return ServiceOrder.fromMap(response);
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao atualizar OS: ${e.toString()}');
     }
   }
 
@@ -76,7 +84,7 @@ class ServiceOrderService {
     try {
       await _client.from('service_orders').delete().eq('id', id);
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao excluir OS: ${e.toString()}');
     }
   }
 
@@ -87,7 +95,7 @@ class ServiceOrderService {
       return all.where((o) =>
           o.status != OSStatus.entrega && o.statusChangedAt.isBefore(cutoff)).toList();
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao buscar OS atrasadas: ${e.toString()}');
     }
   }
 
@@ -104,7 +112,7 @@ class ServiceOrderService {
 
       if (!OSStatus.canMoveTo(currentStatus, newStatus)) {
         throw Exception(
-          'Transição inválida: Não é permitido pular etapas. Do status "${OSStatus.labels[currentStatus]}" só é possível mover para status adjacentes.',
+          'Transição inválida: Do status "${OSStatus.labels[currentStatus]}" só é possível mover para status adjacentes.',
         );
       }
 
@@ -149,7 +157,7 @@ class ServiceOrderService {
         });
       }
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao mover status da OS: ${e.toString()}');
     }
   }
 
@@ -167,6 +175,23 @@ class ServiceOrderService {
     }
   }
 
+  Future<List<OrderAssignment>> getAssignmentsForOrders(List<String> orderIds) async {
+    try {
+      if (orderIds.isEmpty) return [];
+      final response = await _client
+          .from('order_assignments')
+          .select('*, profiles(name)')
+          .inFilter('order_id', orderIds)
+          .order('assigned_at', ascending: false);
+      return (response as List).map((e) {
+        final employeeName = e['profiles'] != null ? e['profiles']['name'] as String? : null;
+        return OrderAssignment.fromMap(e, employeeName: employeeName);
+      }).toList();
+    } catch (e) {
+      throw Exception('Falha ao buscar designações: ${e.toString()}');
+    }
+  }
+
   // Fetch status history for a specific OS
   Future<List<StatusHistory>> getStatusHistory(String orderId) async {
     try {
@@ -180,7 +205,7 @@ class ServiceOrderService {
         return StatusHistory.fromMap(e, changedByName: profileName);
       }).toList();
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao buscar histórico de status: ${e.toString()}');
     }
   }
 
@@ -197,7 +222,7 @@ class ServiceOrderService {
         return OrderAssignment.fromMap(e, employeeName: employeeName);
       }).toList();
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao buscar designações: ${e.toString()}');
     }
   }
 }

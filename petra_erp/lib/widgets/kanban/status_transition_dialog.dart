@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/constants/os_status.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/os_provider.dart';
@@ -119,12 +121,12 @@ class _StatusTransitionDialogState extends ConsumerState<StatusTransitionDialog>
     return AlertDialog(
       title: Row(
         children: [
-          const Icon(Icons.swap_horiz, color: AppColors.secondary),
-          const SizedBox(width: 8.0),
+          const Icon(LucideIcons.arrowLeftRight, size: 18, color: AppColors.accent),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               'Alterar Etapa: OS ${widget.order.formattedNumber}',
-              style: const TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
+              style: AppTheme.syne(fontSize: 15, fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -138,28 +140,25 @@ class _StatusTransitionDialogState extends ConsumerState<StatusTransitionDialog>
             children: [
               Text(
                 'Etapa Atual: $currentStatusLabel',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w700),
               ),
-              const SizedBox(height: 16.0),
+              const SizedBox(height: 16),
 
-              // Destination Status selection
-              const Text(
-                'Nova Etapa',
-                style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.w600, color: AppColors.grey),
-              ),
-              const SizedBox(height: 6.0),
+              Text('Nova Etapa',
+                style: AppTheme.jakarta(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
+              const SizedBox(height: 6),
               if (widget.targetStatus != null)
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(8.0),
-                    border: Border.all(color: AppColors.lightGrey),
+                    color: AppColors.primary.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                    border: Border.all(color: AppColors.border),
                   ),
                   child: Text(
                     OSStatus.labels[widget.targetStatus] ?? widget.targetStatus!,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w700),
                   ),
                 )
               else
@@ -187,17 +186,17 @@ class _StatusTransitionDialogState extends ConsumerState<StatusTransitionDialog>
               if (requiresAssignment && requiredRole != null) ...[
                 Text(
                   'Responsável pela Etapa (${requiredRole.toUpperCase()})',
-                  style: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.w600, color: AppColors.grey),
+                  style: AppTheme.jakarta(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted),
                 ),
-                const SizedBox(height: 6.0),
+                const SizedBox(height: 6),
                 ref.watch(activeEmployeesByRoleProvider(requiredRole)).when(
                   data: (employees) {
                     if (employees.isEmpty) {
                       return Padding(
-                        padding: const EdgeInsets.only(top: 4.0),
+                        padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           'Atenção: Nenhum funcionário com cargo "$requiredRole" ativo cadastrado.',
-                          style: const TextStyle(color: AppColors.error, fontSize: 12.0, fontWeight: FontWeight.bold),
+                          style: AppTheme.jakarta(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.error),
                         ),
                       );
                     }
@@ -227,17 +226,15 @@ class _StatusTransitionDialogState extends ConsumerState<StatusTransitionDialog>
                     );
                   },
                   loading: () => const LinearProgressIndicator(),
-                  error: (err, _) => Text('Erro ao carregar funcionários: $err', style: const TextStyle(color: AppColors.error)),
+                  error: (err, _) => Text('Erro ao carregar funcionários: $err',
+                    style: AppTheme.jakarta(color: AppColors.error)),
                 ),
-                const SizedBox(height: 16.0),
+                const SizedBox(height: 16),
               ],
 
-              // Notes Input Field
-              const Text(
-                'Observações (Opcional)',
-                style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.w600, color: AppColors.grey),
-              ),
-              const SizedBox(height: 6.0),
+              Text('Observações (Opcional)',
+                style: AppTheme.jakarta(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
+              const SizedBox(height: 6),
               TextFormField(
                 controller: _notesController,
                 maxLines: 3,
@@ -248,11 +245,9 @@ class _StatusTransitionDialogState extends ConsumerState<StatusTransitionDialog>
               ),
 
               if (_errorMessage != null) ...[
-                const SizedBox(height: 16.0),
-                Text(
-                  _errorMessage!,
-                  style: const TextStyle(color: AppColors.error, fontSize: 13.0),
-                ),
+                const SizedBox(height: 14),
+                Text(_errorMessage!,
+                  style: AppTheme.jakarta(fontSize: 13, color: AppColors.error)),
               ],
             ],
           ),
@@ -261,7 +256,7 @@ class _StatusTransitionDialogState extends ConsumerState<StatusTransitionDialog>
       actions: [
         TextButton(
           onPressed: _isLoading ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+          child: Text('Cancelar', style: AppTheme.jakarta(fontSize: 13, color: AppColors.textMuted)),
         ),
         ElevatedButton(
           onPressed: _isLoading || _selectedStatus == null ? null : _submitTransition,

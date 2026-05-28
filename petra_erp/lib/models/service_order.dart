@@ -8,7 +8,7 @@ class ServiceOrder {
   final String customerId;
   final String? customerName; // From customer join
   final String description;
-  final String status; // orcamento, aprovado, recebido, esperando_material, corte, montagem, entrega
+  final String status; // orcamento, aprovado, esperando_material, corte, montagem, entrega
   final int queuePosition;
   final String? material;
   final String? edgeType;

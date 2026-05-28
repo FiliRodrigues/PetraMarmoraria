@@ -84,11 +84,19 @@ class FakeProfileService implements ProfileService {
   Future<void> setProfileActiveStatus(String id, bool active) async {}
   @override
   Future<Profile> updateProfile(Profile profile) async => profile;
+  @override
+  Future<Map<String, dynamic>> createProfile({
+    required String email,
+    required String password,
+    required String name,
+    required String role,
+    String? phone,
+  }) async => {'id': 'fake-id', 'email': email, 'name': name, 'role': role};
 }
 
 class FakeServiceOrderService implements ServiceOrderService {
   @override
-  Future<List<ServiceOrder>> getServiceOrders() async => [];
+  Future<List<ServiceOrder>> getServiceOrders({DateTime? fromDate, DateTime? toDate}) async => [];
   @override
   Stream<List<ServiceOrder>> streamServiceOrders() => const Stream.empty();
   @override
@@ -126,6 +134,8 @@ class FakeServiceOrderService implements ServiceOrderService {
   Future<List<StatusHistory>> getStatusHistory(String orderId) async => [];
   @override
   Future<List<OrderAssignment>> getAssignments(String orderId) async => [];
+  @override
+  Future<List<OrderAssignment>> getAssignmentsForOrders(List<String> orderIds) async => [];
 }
 
 class MockAuthNotifier extends AuthNotifier {

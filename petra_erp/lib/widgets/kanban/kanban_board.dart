@@ -1,47 +1,47 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/os_status.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../models/models.dart';
 import 'kanban_column.dart';
 
-/// The main Kanban Board widget. Adapts responsively:
-/// - Desktop: horizontal scrolling row of columns.
-/// - Mobile: TabBar with scrollable stage tabs and horizontal paging.
 class KanbanBoard extends StatelessWidget {
   final List<ServiceOrder> orders;
+  final List<String>? statuses;
 
   const KanbanBoard({
     super.key,
     required this.orders,
+    this.statuses,
   });
 
-  Map<String, List<ServiceOrder>> _groupOrdersByStatus() {
+  Map<String, List<ServiceOrder>> _groupOrdersByStatus(List<String> list) {
     final Map<String, List<ServiceOrder>> grouped = {
-      for (var status in OSStatus.ordered) status: [],
+      for (var status in list) status: [],
     };
-    
+
     for (var order in orders) {
       if (grouped.containsKey(order.status)) {
         grouped[order.status]!.add(order);
       }
     }
-    
+
     return grouped;
   }
 
   @override
   Widget build(BuildContext context) {
-    final groupedOrders = _groupOrdersByStatus();
+    final list = statuses ?? OSStatus.ordered;
+    final groupedOrders = _groupOrdersByStatus(list);
     final width = MediaQuery.of(context).size.width;
     final isDesktop = width > 900;
 
     if (isDesktop) {
-      // Horizontal row for desktop screens
       return SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: OSStatus.ordered.map((status) {
+          children: list.map((status) {
             return KanbanColumn(
               status: status,
               orders: groupedOrders[status] ?? [],
@@ -51,18 +51,17 @@ class KanbanBoard extends StatelessWidget {
       );
     }
 
-    // Scrollable TabBar layout for mobile/tablet screens
     return DefaultTabController(
-      length: OSStatus.ordered.length,
+      length: list.length,
       child: Column(
         children: [
           TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
             labelColor: AppColors.primary,
-            indicatorColor: AppColors.secondary,
+            indicatorColor: AppColors.accent,
             unselectedLabelColor: AppColors.grey,
-            tabs: OSStatus.ordered.map((status) {
+            tabs: list.map((status) {
               final label = OSStatus.labels[status] ?? status;
               final count = groupedOrders[status]?.length ?? 0;
               return Tab(
@@ -73,15 +72,15 @@ class KanbanBoard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
                       decoration: BoxDecoration(
-                        color: count > 0 ? AppColors.secondary : AppColors.lightGrey,
+                        color: count > 0 ? AppColors.accent.withValues(alpha: 0.15) : AppColors.surfaceElevated,
                         borderRadius: BorderRadius.circular(10.0),
                       ),
                       child: Text(
                         '$count',
-                        style: TextStyle(
-                          fontSize: 10.0,
-                          fontWeight: FontWeight.bold,
-                          color: count > 0 ? AppColors.primary : AppColors.grey,
+                        style: AppTheme.jakarta(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: count > 0 ? AppColors.accent : AppColors.textMuted,
                         ),
                       ),
                     ),
@@ -92,7 +91,7 @@ class KanbanBoard extends StatelessWidget {
           ),
           Expanded(
             child: TabBarView(
-              children: OSStatus.ordered.map((status) {
+              children: list.map((status) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: KanbanColumn(

@@ -1,126 +1,298 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
+import 'confirm_dialog.dart';
 
 class AppDrawer extends ConsumerWidget {
   final bool isSidebar;
-
   const AppDrawer({super.key, this.isSidebar = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(currentProfileProvider);
-    final profile = profileAsync.value;
-    final isAdmin = profile?.role == 'admin';
+    final profile      = profileAsync.value;
+    final isAdmin      = profile?.role == 'admin';
 
     String location = '/';
-    try {
-      location = GoRouterState.of(context).matchedLocation;
-    } catch (_) {
-    }
+    try { location = GoRouterState.of(context).matchedLocation; } catch (_) {}
 
-    final body = _buildBody(context, profile, isAdmin, location, ref);
+    final body = _DrawerBody(
+      profile: profile, isAdmin: isAdmin,
+      location: location, ref: ref, context: context,
+      isSidebar: isSidebar,
+    );
 
     if (isSidebar) {
       return Container(
-        color: AppColors.primary,
+        width: 240,
+        color: AppColors.sidebarDark,
         child: SafeArea(child: body),
       );
     }
-
-    return Drawer(child: body);
+    return Drawer(
+      backgroundColor: AppColors.sidebarDark,
+      child: body,
+    );
   }
+}
 
-  Widget _buildBody(BuildContext context, dynamic profile, bool isAdmin, String location, WidgetRef ref) {
+class _DrawerBody extends StatelessWidget {
+  final dynamic profile;
+  final bool isAdmin;
+  final String location;
+  final WidgetRef ref;
+  final BuildContext context;
+  final bool isSidebar;
+
+  const _DrawerBody({
+    required this.profile, required this.isAdmin,
+    required this.location, required this.ref, required this.context,
+    this.isSidebar = false,
+  });
+
+  @override
+  Widget build(BuildContext ctx) {
     return Column(
       children: [
-        DrawerHeader(
-          decoration: const BoxDecoration(color: AppColors.primary),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                backgroundColor: AppColors.secondary,
-                child: Text(
-                  profile != null && profile.name.isNotEmpty
-                      ? profile.name.substring(0, 1).toUpperCase()
-                      : 'U',
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primary),
-                ),
-              ),
-              const Spacer(),
-              Text(
-                profile?.name ?? 'Carregando...',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.background, fontSize: 16),
-              ),
-              Text(
-                profile?.email ?? '',
-                style: TextStyle(color: AppColors.background.withOpacity(0.8), fontSize: 12),
-              ),
-            ],
-          ),
-        ),
+        _Header(profile: profile, isAdmin: isAdmin),
         Expanded(
           child: ListView(
-            padding: EdgeInsets.zero,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             children: [
-              _buildItem(Icons.dashboard_outlined, Icons.dashboard, 'Painel Kanban', '/', location, context),
-              _buildItem(Icons.people_outline, Icons.people, 'Clientes', '/customers', location, context),
+              _sectionLabel('PRINCIPAL'),
+              _item(ctx, LucideIcons.layoutDashboard, 'Painel Kanban',     '/',          location),
+              _item(ctx, LucideIcons.clipboardList,   'Ordens de Serviço', '/orders',    location),
+              _sectionLabel('CADASTROS'),
+              _item(ctx, LucideIcons.users,           'Clientes',          '/customers', location),
               if (isAdmin)
-                _buildItem(Icons.badge_outlined, Icons.badge, 'Funcionários', '/employees', location, context),
-              _buildItem(Icons.shopping_bag_outlined, Icons.shopping_bag, 'Produtos', '/products', location, context),
-              _buildItem(Icons.person_outline, Icons.person, 'Meu Perfil', '/profile', location, context),
+              _item(ctx, LucideIcons.hardHat,         'Funcionários',      '/employees', location),
+              _item(ctx, LucideIcons.package,         'Produtos',          '/products',  location),
+              _sectionLabel('ANÁLISE'),
+              _item(ctx, LucideIcons.barChart2,       'Relatórios',        '/reports',   location),
+              _sectionLabel('CONTA'),
+              _item(ctx, LucideIcons.user,            'Meu Perfil',        '/profile',   location),
             ],
           ),
         ),
-        const Divider(),
-        ListTile(
-          leading: const Icon(Icons.logout, color: AppColors.error),
-          title: const Text('Sair', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
-          onTap: () async {
-            final confirm = await showDialog<bool>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Confirmar Saída'),
-                content: const Text('Deseja realmente sair do sistema?'),
-                actions: [
-                  TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
-                  ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(true),
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
-                    child: const Text('Sair'),
-                  ),
-                ],
-              ),
-            );
-            if (confirm == true) {
-              await ref.read(authProvider.notifier).logout();
-            }
-          },
-        ),
-        const SizedBox(height: 16),
+        _Footer(ref: ref, context: context),
       ],
     );
   }
 
-  Widget _buildItem(IconData icon, IconData activeIcon, String label, String route, String location, BuildContext context) {
-    final isSelected = location == route || (route != '/' && location.startsWith(route));
-    return ListTile(
-      selected: isSelected,
-      selectedTileColor: AppColors.secondary.withOpacity(0.15),
-      selectedColor: AppColors.background,
-      iconColor: AppColors.background.withOpacity(0.7),
-      textColor: AppColors.background.withOpacity(0.7),
-      leading: Icon(isSelected ? activeIcon : icon, color: isSelected ? AppColors.secondary : null),
-      title: Text(label, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+  Widget _sectionLabel(String label) => Padding(
+    padding: const EdgeInsets.fromLTRB(12, 14, 0, 4),
+    child: Text(
+      label,
+      style: AppTheme.jakarta(
+        fontSize: 9.5, fontWeight: FontWeight.w700,
+        color: Colors.white.withOpacity(0.28),
+      ).copyWith(letterSpacing: 1.5),
+    ),
+  );
+
+  Widget _item(BuildContext ctx, IconData icon, String label, String route, String loc) {
+    final isActive = loc == route || (route != '/' && loc.startsWith(route));
+    return _NavItem(
+      icon: icon, label: label, isActive: isActive,
       onTap: () {
-        if (!isSidebar && context.mounted && Scaffold.of(context).isDrawerOpen) {
-          Navigator.of(context).pop();
-        }
-        context.go(route);
+        if (!isSidebar && Scaffold.of(ctx).isDrawerOpen) Navigator.of(ctx).pop();
+        ctx.go(route);
       },
+    );
+  }
+}
+
+// ── Header com logo + user ────────────────────────────────────────────────────
+class _Header extends StatelessWidget {
+  final dynamic profile;
+  final bool isAdmin;
+  const _Header({required this.profile, required this.isAdmin});
+
+  @override
+  Widget build(BuildContext context) {
+    final name     = profile?.name ?? 'Carregando...';
+    final initials = name.isNotEmpty ? name[0].toUpperCase() : 'U';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 22, 18, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Logo
+          Row(
+            children: [
+              Container(
+                width: 38, height: 38,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0F4C7A), Color(0xFF1464A8)],
+                    begin: Alignment.topLeft, end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(LucideIcons.gem, color: Colors.white, size: 17),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Petra', style: AppTheme.syne(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
+                  Text('Sistema de Gestão',
+                    style: AppTheme.jakarta(fontSize: 9.5, color: Colors.white.withOpacity(0.4))),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          // User chip
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.07),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 30, height: 30,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(initials,
+                    style: AppTheme.syne(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name,
+                        style: AppTheme.jakarta(fontSize: 12.5, fontWeight: FontWeight.w600, color: Colors.white),
+                        overflow: TextOverflow.ellipsis),
+                      Text(isAdmin ? 'ADMIN' : 'MEMBRO',
+                        style: AppTheme.jakarta(fontSize: 9, fontWeight: FontWeight.w800,
+                          color: isAdmin ? const Color(0xFF7DD3FC) : AppColors.accent)
+                          .copyWith(letterSpacing: 0.5)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Nav Item ──────────────────────────────────────────────────────────────────
+class _NavItem extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.icon, required this.label,
+    required this.isActive, required this.onTap,
+  });
+
+  @override
+  State<_NavItem> createState() => _NavItemState();
+}
+
+class _NavItemState extends State<_NavItem> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = widget.isActive
+        ? AppColors.accent.withOpacity(0.17)
+        : _hovered ? Colors.white.withOpacity(0.06) : Colors.transparent;
+    final color = widget.isActive
+        ? AppColors.accent
+        : Colors.white.withOpacity(0.7);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit:  (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          margin: const EdgeInsets.only(bottom: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Icon(widget.icon, size: 16, color: color),
+              const SizedBox(width: 10),
+              Text(widget.label,
+                style: AppTheme.jakarta(
+                  fontSize: 13.5,
+                  fontWeight: widget.isActive ? FontWeight.w600 : FontWeight.w400,
+                  color: color,
+                )),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Footer ────────────────────────────────────────────────────────────────────
+class _Footer extends StatelessWidget {
+  final WidgetRef ref;
+  final BuildContext context;
+  const _Footer({required this.ref, required this.context});
+
+  @override
+  Widget build(BuildContext ctx) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.08))),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text('v1.0.0',
+            style: AppTheme.jakarta(fontSize: 10.5, color: Colors.white.withOpacity(0.22))),
+          GestureDetector(
+            onTap: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (_) => const ConfirmDialog(
+                  title: 'Confirmar saída',
+                  content: 'Deseja realmente sair do sistema?',
+                ),
+              );
+              if (confirm == true) await ref.read(authProvider.notifier).logout();
+            },
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(LucideIcons.logOut, size: 14, color: AppColors.error),
+                const SizedBox(width: 5),
+                Text('Sair',
+                  style: AppTheme.jakarta(fontSize: 12, fontWeight: FontWeight.w700,
+                    color: AppColors.error)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

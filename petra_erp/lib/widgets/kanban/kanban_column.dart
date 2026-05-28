@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/os_status.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../models/models.dart';
 import '../../providers/os_provider.dart';
 import 'os_card.dart';
 import 'status_transition_dialog.dart';
 
-/// Column widget representing a production stage on the Kanban board.
-/// Implements DragTarget and verifies valid stage changes.
 class KanbanColumn extends ConsumerWidget {
   final String status;
   final List<ServiceOrder> orders;
@@ -26,7 +25,6 @@ class KanbanColumn extends ConsumerWidget {
     return DragTarget<ServiceOrder>(
       onWillAccept: (order) {
         if (order == null) return false;
-        // Verify sequence transition
         return OSStatus.canMoveTo(order.status, status);
       },
       onAccept: (order) {
@@ -42,7 +40,6 @@ class KanbanColumn extends ConsumerWidget {
         );
       },
       builder: (context, candidateData, rejectedData) {
-        // Highlight background when a draggable item is hovered over
         final isHovered = candidateData.isNotEmpty;
         final isDesktop = MediaQuery.of(context).size.width > 900;
 
@@ -50,57 +47,57 @@ class KanbanColumn extends ConsumerWidget {
           width: isDesktop ? 300.0 : null,
           margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
           decoration: BoxDecoration(
-            color: isHovered 
-                ? AppColors.secondary.withOpacity(0.08) 
-                : Colors.white.withOpacity(0.4),
-            borderRadius: BorderRadius.circular(12.0),
+            color: isHovered
+                ? AppColors.primary.withOpacity(0.04)
+                : AppColors.surfaceElevated.withOpacity(0.6),
+            borderRadius: BorderRadius.circular(AppTheme.radiusXl),
             border: Border.all(
-              color: isHovered ? AppColors.secondary : Colors.transparent,
-              width: 1.5,
+              color: isHovered ? AppColors.primary.withOpacity(0.3) : AppColors.border,
+              width: isHovered ? 1.5 : 1,
             ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Column Header
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(10.0),
-                    topRight: Radius.circular(10.0),
-                  ),
-                ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
-                      child: Text(
-                        statusLabel.toUpperCase(),
-                        style: const TextStyle(
-                          color: AppColors.background,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12.0,
-                          letterSpacing: 0.5,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 8, height: 8,
+                            decoration: BoxDecoration(
+                              color: AppColors.statusColors(status).color,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              statusLabel.toUpperCase(),
+                              style: AppTheme.jakarta(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primary,
+                              ).copyWith(letterSpacing: 0.8),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary,
-                        borderRadius: BorderRadius.circular(10.0),
-                      ),
-                      child: Text(
-                        '${orders.length}',
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 11.0,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    Text(
+                      '${orders.length}',
+                      style: AppTheme.numeric(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textMuted,
                       ),
                     ),
                   ],

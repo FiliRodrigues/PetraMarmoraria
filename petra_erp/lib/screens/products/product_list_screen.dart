@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/product_provider.dart';
 import '../../widgets/widgets.dart';
@@ -43,14 +45,14 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         title: const Text('Catálogo de Materiais'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(LucideIcons.refreshCw, size: 18),
             onPressed: () => ref.read(productProvider.notifier).loadProducts(),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/products/new'),
-        child: const Icon(Icons.add),
+        child: const Icon(LucideIcons.plus, size: 20),
       ),
       body: productsAsync.when(
         data: (products) {
@@ -70,7 +72,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                   controller: _searchController,
                   decoration: const InputDecoration(
                     hintText: 'Buscar por nome ou tipo de material...',
-                    prefixIcon: Icon(Icons.search),
+                    prefixIcon: const Icon(LucideIcons.search, size: 16),
                   ),
                 ),
               ),
@@ -81,7 +83,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                     ? const EmptyState(
                         title: 'Nenhum material cadastrado',
                         message: 'Utilize o botão de adicionar para cadastrar o primeiro material no catálogo.',
-                        icon: Icons.category_outlined,
+                        icon: LucideIcons.package,
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -91,37 +93,36 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                           return Card(
                             margin: const EdgeInsets.only(bottom: 12.0),
                             child: ListTile(
-                              leading: const CircleAvatar(
-                                backgroundColor: AppColors.secondary,
-                                foregroundColor: AppColors.primary,
-                                child: Icon(Icons.texture),
+                              leading: Container(
+                                width: 40, height: 40,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                                ),
+                                alignment: Alignment.center,
+                                child: const Icon(LucideIcons.layers, size: 18, color: AppColors.primary),
                               ),
-                              title: Text(
-                                product.name,
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
+                              title: Text(product.name,
+                                style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w700)),
                               subtitle: Padding(
-                                padding: const EdgeInsets.only(top: 4.0),
-                                child: Text('Tipo: ${product.type.toUpperCase()}'),
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text('Tipo: ${product.type.toUpperCase()}',
+                                  style: AppTheme.jakarta(fontSize: 12, color: AppColors.textMuted)),
                               ),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
                                     '${Formatters.formatCurrency(product.unitPrice)}/${product.unit}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14.0,
-                                      color: AppColors.primary,
-                                    ),
+                                    style: AppTheme.numeric(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary),
                                   ),
-                                  const SizedBox(width: 12.0),
+                                  const SizedBox(width: 4),
                                   IconButton(
-                                    icon: const Icon(Icons.edit, color: AppColors.primary),
+                                    icon: const Icon(LucideIcons.edit, size: 16, color: AppColors.primary),
                                     onPressed: () => context.push('/products/${product.id}/edit'),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.delete, color: AppColors.error),
+                                    icon: const Icon(LucideIcons.trash2, size: 16, color: AppColors.error),
                                     onPressed: () async {
                                       final confirm = await ConfirmDialog.show(
                                         context,

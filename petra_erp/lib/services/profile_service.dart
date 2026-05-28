@@ -14,7 +14,7 @@ class ProfileService {
           .order('name', ascending: true);
       return (response as List).map((e) => Profile.fromMap(e)).toList();
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao buscar funcionários: ${e.toString()}');
     }
   }
 
@@ -28,7 +28,7 @@ class ProfileService {
           .order('name', ascending: true);
       return (response as List).map((e) => Profile.fromMap(e)).toList();
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao buscar funcionários por cargo: ${e.toString()}');
     }
   }
 
@@ -37,7 +37,28 @@ class ProfileService {
       final response = await _client.from('profiles').select().eq('id', id).single();
       return Profile.fromMap(response);
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao buscar perfil: ${e.toString()}');
+    }
+  }
+
+  Future<Map<String, dynamic>> createProfile({
+    required String email,
+    required String password,
+    required String name,
+    required String role,
+    String? phone,
+  }) async {
+    try {
+      final response = await _client.functions.invoke('create-employee', body: {
+        'email': email,
+        'password': password,
+        'name': name,
+        'role': role,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
+      });
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      throw Exception('Falha ao criar funcionário: ${e.toString()}');
     }
   }
 
@@ -52,7 +73,7 @@ class ProfileService {
           .single();
       return Profile.fromMap(response);
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao atualizar funcionário: ${e.toString()}');
     }
   }
 
@@ -60,7 +81,7 @@ class ProfileService {
     try {
       await _client.from('profiles').update({'active': active}).eq('id', id);
     } catch (e) {
-      rethrow;
+      throw Exception('Falha ao alterar status do funcionário: ${e.toString()}');
     }
   }
 }

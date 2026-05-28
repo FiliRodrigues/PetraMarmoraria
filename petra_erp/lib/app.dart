@@ -1,19 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/theme/app_theme.dart';
 import 'screens/screens.dart';
 import 'widgets/widgets.dart';
 import 'providers/auth_provider.dart';
 
-// GoRouter provider that listens to auth state changes to trigger redirects
+// Stable GoRouter that doesn't get recreated on every auth state change.
+// Uses refreshListenable to re-evaluate redirects without rebuilding the router.
+final _authStateListenable = ValueNotifier<AsyncValue<User?>>(const AsyncValue.loading());
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
+  ref.listen(authProvider, (_, next) {
+    _authStateListenable.value = next;
+  });
+  // Seed initial value
+  _authStateListenable.value = ref.read(authProvider);
 
   return GoRouter(
     initialLocation: '/',
+    refreshListenable: _authStateListenable,
     redirect: (context, state) {
-      // Treat loading as "no session yet" so router always lands somewhere.
+      final authState = _authStateListenable.value;
+
+      if (authState.isLoading) return null;
+
       final user = authState.value;
 
       final isLoggingIn = state.matchedLocation == '/login' ||
@@ -70,6 +82,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             },
           ),
           GoRoute(
+            path: '/orders',
+            builder: (context, state) => const OrderListScreen(),
+          ),
+          GoRoute(
             path: '/orders/new',
             builder: (context, state) => const OSFormScreen(),
           ),
@@ -109,6 +125,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/profile',
             builder: (context, state) => const ProfileScreen(),
+          ),
+          GoRoute(
+            path: '/reports',
+            builder: (context, state) => const ReportsScreen(),
           ),
         ],
       ),

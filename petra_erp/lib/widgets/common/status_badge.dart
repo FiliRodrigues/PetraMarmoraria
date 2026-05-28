@@ -1,56 +1,45 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/os_status.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 
-/// A custom badge to display the stage status with a corresponding color indicator.
+/// Badge de status para OS — dot colorido + label.
+/// Exemplo: `StatusBadge(status: order.status)`
 class StatusBadge extends StatelessWidget {
   final String status;
+  final bool small;
 
-  const StatusBadge({
-    super.key,
-    required this.status,
-  });
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case OSStatus.orcamento:
-        return Colors.blueGrey.shade700;
-      case OSStatus.aprovado:
-        return Colors.blue.shade700;
-      case OSStatus.recebido:
-        return Colors.teal.shade700;
-      case OSStatus.esperandoMaterial:
-        return Colors.orange.shade800;
-      case OSStatus.corte:
-        return Colors.purple.shade700;
-      case OSStatus.montagem:
-        return Colors.indigo.shade700;
-      case OSStatus.entrega:
-        return Colors.green.shade700;
-      default:
-        return Colors.grey.shade700;
-    }
-  }
+  const StatusBadge({super.key, required this.status, this.small = false});
 
   @override
   Widget build(BuildContext context) {
     final label = OSStatus.labels[status] ?? status;
-    final color = _getStatusColor(status);
+    final (:color, :bg) = AppColors.statusColors(status);
+    final fontSize  = small ? 9.5 : 11.0;
+    final dotSize   = small ? 4.5 : 5.5;
+    final hPad      = small ? 6.0 : 8.0;
+    final vPad      = small ? 2.0 : 3.0;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(20.0),
-        border: Border.all(color: color.withOpacity(0.5), width: 1),
-      ),
-      child: Text(
-        label.toUpperCase(),
-        style: TextStyle(
-          color: color,
-          fontSize: 11.0,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 0.5,
-        ),
+      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: dotSize, height: dotSize,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: AppTheme.jakarta(
+              fontSize: fontSize,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }

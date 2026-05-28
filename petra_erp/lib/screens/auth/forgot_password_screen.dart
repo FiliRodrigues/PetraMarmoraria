@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
 
-/// Screen for requesting password recovery links.
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
@@ -29,148 +30,110 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   Future<void> _handleResetPassword() async {
     if (!_formKey.currentState!.validate()) return;
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    setState(() { _isLoading = true; _errorMessage = null; });
 
     try {
       await ref.read(authProvider.notifier).resetPassword(_emailController.text.trim());
-      setState(() {
-        _emailSent = true;
-      });
+      setState(() { _emailSent = true; });
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
-      });
+      setState(() { _errorMessage = e.toString().replaceAll('Exception: ', ''); });
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() { _isLoading = false; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth > 600;
-    final cardWidth = isDesktop ? 400.0 : screenWidth * 0.9;
-
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Recuperar Senha'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(LucideIcons.arrowLeft, size: 18),
           onPressed: () => context.pop(),
         ),
       ),
       body: Center(
         child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: cardWidth,
-            ),
-            child: Card(
-              elevation: 4.0,
-              color: AppColors.white,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 40.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.lock_reset,
-                        size: 64.0,
-                        color: AppColors.secondary,
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                border: Border.all(color: AppColors.border),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Icon
+                    Center(
+                      child: Container(
+                        width: 56, height: 56,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                        ),
+                        alignment: Alignment.center,
+                        child: const Icon(LucideIcons.keyRound, size: 24, color: AppColors.primary),
                       ),
-                      const SizedBox(height: 16.0),
-                      const Text(
-                        'RECUPERAR SENHA',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 18.0,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                          letterSpacing: 1.0,
+                    ),
+                    const SizedBox(height: 20),
+
+                    Text('RECUPERAR SENHA',
+                      textAlign: TextAlign.center,
+                      style: AppTheme.syne(fontSize: 16, fontWeight: FontWeight.w800)
+                        .copyWith(letterSpacing: 0.8)),
+                    const SizedBox(height: 10),
+
+                    Text(
+                      _emailSent
+                        ? 'As instruções de recuperação foram enviadas para o e-mail informado.'
+                        : 'Insira seu e-mail cadastrado para receber o link de redefinição de senha.',
+                      textAlign: TextAlign.center,
+                      style: AppTheme.jakarta(fontSize: 13, color: AppColors.textMuted)),
+                    const SizedBox(height: 28),
+
+                    if (!_emailSent) ...[
+                      TextFormField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'E-mail',
+                          prefixIcon: Icon(LucideIcons.mail, size: 16),
                         ),
+                        validator: Validators.validateEmail,
+                        onFieldSubmitted: (_) => _handleResetPassword(),
                       ),
-                      const SizedBox(height: 12.0),
-                      Text(
-                        _emailSent 
-                            ? 'As instruções de recuperação foram enviadas para o e-mail informado.' 
-                            : 'Insira seu e-mail cadastrado para receber o link de redefinição de senha.',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 14.0,
-                          color: AppColors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 32.0),
+                      const SizedBox(height: 20),
 
-                      if (!_emailSent) ...[
-                        // Email Input
-                        TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(
-                            labelText: 'E-mail',
-                            prefixIcon: Icon(Icons.email_outlined),
-                          ),
-                          validator: Validators.validateEmail,
-                          onFieldSubmitted: (_) => _handleResetPassword(),
-                        ),
-                        const SizedBox(height: 24.0),
-
-                        // Error message placeholder
-                        if (_errorMessage != null) ...[
-                          Text(
-                            _errorMessage!,
-                            style: const TextStyle(
-                              color: AppColors.error,
-                              fontSize: 13.0,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 16.0),
-                        ],
-
-                        // Submit Button
-                        ElevatedButton(
-                          onPressed: _isLoading ? null : _handleResetPassword,
-                          child: _isLoading
-                              ? const SizedBox(
-                                  height: 20.0,
-                                  width: 20.0,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.0,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      AppColors.background,
-                                    ),
-                                  ),
-                                )
-                              : const Text('ENVIAR INSTRUÇÕES'),
-                        ),
-                      ] else ...[
-                        // Success State
-                        ElevatedButton(
-                          onPressed: () => context.pop(),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.secondary,
-                            foregroundColor: AppColors.primary,
-                          ),
-                          child: const Text('VOLTAR PARA LOGIN'),
-                        ),
+                      if (_errorMessage != null) ...[
+                        Text(_errorMessage!,
+                          style: AppTheme.jakarta(fontSize: 13, color: AppColors.error),
+                          textAlign: TextAlign.center),
+                        const SizedBox(height: 14),
                       ],
+
+                      ElevatedButton(
+                        onPressed: _isLoading ? null : _handleResetPassword,
+                        child: _isLoading
+                          ? const SizedBox(height: 18, width: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : Text('ENVIAR INSTRUÇÕES',
+                              style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+                      ),
+                    ] else ...[
+                      ElevatedButton(
+                        onPressed: () => context.pop(),
+                        child: Text('VOLTAR PARA LOGIN',
+                          style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+                      ),
                     ],
-                  ),
+                  ],
                 ),
               ),
             ),

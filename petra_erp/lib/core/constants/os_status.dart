@@ -3,7 +3,6 @@ class OSStatus {
 
   static const orcamento = 'orcamento';
   static const aprovado = 'aprovado';
-  static const recebido = 'recebido';
   static const esperandoMaterial = 'esperando_material';
   static const corte = 'corte';
   static const montagem = 'montagem';
@@ -12,7 +11,6 @@ class OSStatus {
   static const List<String> ordered = [
     orcamento,
     aprovado,
-    recebido,
     esperandoMaterial,
     corte,
     montagem,
@@ -22,7 +20,6 @@ class OSStatus {
   static const Map<String, String> labels = {
     orcamento: 'Orçamento',
     aprovado: 'Aprovado',
-    recebido: 'Recebido',
     esperandoMaterial: 'Esperando Material',
     corte: 'Corte',
     montagem: 'Montagem',
@@ -40,6 +37,17 @@ class OSStatus {
     final i = indexOf(status);
     return i > 0 ? ordered[i - 1] : null;
   }
+
+  static const List<String> pedidosStatuses = [
+    orcamento,
+    aprovado,
+    esperandoMaterial,
+  ];
+  static const List<String> producaoStatuses = [
+    corte,
+    montagem,
+    entrega,
+  ];
 
   static bool canMoveTo(String from, String to) {
     return to == next(from) || to == previous(from);

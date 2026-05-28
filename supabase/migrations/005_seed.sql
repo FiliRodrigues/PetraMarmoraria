@@ -70,9 +70,6 @@ INSERT INTO public.service_orders (id, display_number, customer_id, description,
 -- OS #4: Orçamento (Normal, new budget)
 ('d4b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 4, 'c4d5e6f7-a8b9-0c1d-2e3f-4a5b6c7d8e9f', 'Área Gourmet Completa', 'orcamento', 4, 'Granito Preto São Gabriel', 'Bisotado', '{"largura": 3.00, "altura": 0.65, "espessura": 0.03, "formato": "U"}', 4500.00, now() - interval '2 days', current_date + 20),
 
--- OS #5: Recebido (Inactive 6 days -> Delayed state badge)
-('d5b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 5, 'd5e6f7a8-b9c0-1d2e-3f4a-5b6c7d8e9f0a', 'Painel de TV Sala', 'recebido', 5, 'Mármore Travertino', '45 Graus', '{"largura": 2.00, "altura": 1.20, "espessura": 0.02, "formato": "Reto"}', 6200.00, now() - interval '6 days', current_date + 12),
-
 -- OS #6: Montagem (Active, assigned)
 ('d6b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 6, 'f1a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'Ilha Cozinha Central', 'montagem', 6, 'Quartzo Branco Estelar', 'Bisotado', '{"largura": 2.00, "altura": 1.00, "espessura": 0.03, "formato": "Reto"}', 5100.00, now() - interval '1 day', current_date + 5),
 
@@ -93,44 +90,34 @@ INSERT INTO public.status_history (id, order_id, from_status, to_status, changed
 -- OS 1 transitions
 ('h1a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', NULL, 'orcamento', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '10 days', 'Orçamento inicial criado.'),
 ('h1b2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'orcamento', 'aprovado', 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', now() - interval '8 days', 'Cliente aprovou o orçamento e efetuou sinal.'),
-('h1c2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'aprovado', 'recebido', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '7 days', 'Pedido recebido pelo financeiro e liberado para produção.'),
-('h1d2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'recebido', 'esperando_material', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '5 days', 'Aguardando chegada das chapas de Carrara.'),
+('h1d2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'aprovado', 'esperando_material', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '5 days', 'Aguardando chegada das chapas de Carrara.'),
 ('h1e2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'esperando_material', 'corte', 'c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f', now() - interval '1 day', 'Material chegou. Iniciado o corte da bancada.'),
 
 -- OS 2 transitions
 ('h2a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd2b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', NULL, 'orcamento', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '12 days', 'Medições iniciais recebidas.'),
 ('h2b2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd2b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'orcamento', 'aprovado', 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', now() - interval '10 days', 'Aprovado pelo compras da construtora.'),
-('h2c2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd2b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'aprovado', 'recebido', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '8 days', 'Liberado produção.'),
-('h2d2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd2b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'recebido', 'esperando_material', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '4 days', 'Aguardando lote de Granito Preto São Gabriel do fornecedor.'),
+('h2d2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd2b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'aprovado', 'esperando_material', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '4 days', 'Aguardando lote de Granito Preto São Gabriel do fornecedor.'),
 
 -- OS 3 transitions
 ('h3a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd3b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', NULL, 'orcamento', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '4 days', 'Criado orçamento.'),
 ('h3b2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd3b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'orcamento', 'aprovado', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '3 days', 'Aprovado pelo cliente.'),
-('h3c2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd3b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'aprovado', 'recebido', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '2 days', 'Liberado.'),
-('h3d2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd3b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'recebido', 'esperando_material', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '1 day', 'Aguardando chapa branca.'),
+('h3d2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd3b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'aprovado', 'esperando_material', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '1 day', 'Aguardando chapa branca.'),
 ('h3e2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd3b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'esperando_material', 'corte', 'c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f', now() - interval '2 hours', 'Chapa disponível em estoque. Iniciado corte express.'),
 
 -- OS 4 transitions
 ('h4a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd4b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', NULL, 'orcamento', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '2 days', 'Aguardando retorno do cliente sobre o valor total.'),
 
--- OS 5 transitions
-('h5a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd5b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', NULL, 'orcamento', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '10 days', 'Orcamento feito.'),
-('h5b2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd5b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'orcamento', 'aprovado', 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', now() - interval '8 days', 'Aprovado.'),
-('h5c2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd5b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'aprovado', 'recebido', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '6 days', 'Recebido financeiro. Sem novas movimentações desde então.'),
-
 -- OS 6 transitions
 ('h6a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd6b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', NULL, 'orcamento', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '15 days', 'Orcamento criado.'),
 ('h6b2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd6b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'orcamento', 'aprovado', 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', now() - interval '12 days', 'Aprovado.'),
-('h6c2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd6b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'aprovado', 'recebido', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '10 days', 'Recebido.'),
-('h6d2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd6b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'recebido', 'esperando_material', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '8 days', 'Aguardando quartzo.'),
+('h6d2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd6b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'aprovado', 'esperando_material', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '8 days', 'Aguardando quartzo.'),
 ('h6e2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd6b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'esperando_material', 'corte', 'c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f', now() - interval '4 days', 'Corte finalizado das peças.'),
 ('h6f2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd6b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'corte', 'montagem', 'd4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f9a', now() - interval '1 day', 'Peças cortadas e lixadas. Iniciada montagem da saia de 45 graus.'),
 
 -- OS 7 transitions
 ('h7a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd7b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', NULL, 'orcamento', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '25 days', 'Orçamento.'),
 ('h7b2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd7b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'orcamento', 'aprovado', 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', now() - interval '22 days', 'Aprovado.'),
-('h7c2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd7b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'aprovado', 'recebido', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '20 days', 'Liberado.'),
-('h7d2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd7b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'recebido', 'esperando_material', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '18 days', 'Aguardando Carrara.'),
+('h7d2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd7b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'aprovado', 'esperando_material', 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e', now() - interval '18 days', 'Aguardando Carrara.'),
 ('h7e2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd7b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'esperando_material', 'corte', 'c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f', now() - interval '12 days', 'Corte concluído.'),
 ('h7f2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd7b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'corte', 'montagem', 'd4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f9a', now() - interval '8 days', 'Montagem concluída.'),
 ('h7g2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c', 'd7b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'montagem', 'entrega', 'e5f6a7b8-c9d0-1e2f-3a4b-5c6d7e8f9a0b', now() - interval '5 days', 'Liberado para a equipe de entrega levar à obra.')

@@ -67,7 +67,7 @@ RETURNS TRIGGER AS $$
 DECLARE
   v_old_idx INT;
   v_new_idx INT;
-  v_status_list TEXT[] := ARRAY['orcamento', 'aprovado', 'recebido', 'esperando_material', 'corte', 'montagem', 'entrega'];
+  v_status_list TEXT[] := ARRAY['orcamento', 'aprovado', 'esperando_material', 'corte', 'montagem', 'entrega'];
 BEGIN
   -- If status hasn't changed, allow it
   IF OLD.status IS NOT DISTINCT FROM NEW.status THEN

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/employee_provider.dart';
 import '../../widgets/widgets.dart';
@@ -50,7 +52,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                 child: EmptyState(
                   title: 'Acesso Negado',
                   message: 'Você não possui privilégios de Administrador para acessar esta área.',
-                  icon: Icons.lock_outline,
+                  icon: LucideIcons.lock,
                 ),
               ),
             ),
@@ -65,14 +67,14 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
             title: const Text('Controle de Funcionários'),
             actions: [
               IconButton(
-                icon: const Icon(Icons.refresh),
+                icon: const Icon(LucideIcons.refreshCw, size: 18),
                 onPressed: () => ref.read(employeeProvider.notifier).loadEmployees(),
               ),
             ],
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: () => context.push('/employees/new'),
-            child: const Icon(Icons.person_add),
+            child: const Icon(LucideIcons.userPlus, size: 20),
           ),
           body: employeesAsync.when(
             data: (employees) {
@@ -93,7 +95,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                       controller: _searchController,
                       decoration: const InputDecoration(
                         hintText: 'Buscar por nome, cargo ou e-mail...',
-                        prefixIcon: Icon(Icons.search),
+                        prefixIcon: const Icon(LucideIcons.search, size: 16),
                       ),
                     ),
                   ),
@@ -104,7 +106,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                         ? const EmptyState(
                             title: 'Nenhum funcionário encontrado',
                             message: 'Utilize o botão de adicionar para cadastrar novos funcionários no sistema.',
-                            icon: Icons.people_alt_outlined,
+                            icon: LucideIcons.users,
                           )
                         : ListView.builder(
                             padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -116,46 +118,45 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                               return Card(
                                 margin: const EdgeInsets.only(bottom: 12.0),
                                 child: ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundColor: emp.active 
-                                        ? AppColors.secondary.withOpacity(0.2) 
-                                        : AppColors.lightGrey,
-                                    foregroundColor: AppColors.primary,
-                                    child: Text(emp.name.substring(0, 1).toUpperCase()),
+                                  leading: Container(
+                                    width: 40, height: 40,
+                                    decoration: BoxDecoration(
+                                      color: emp.active
+                                          ? AppColors.primary.withValues(alpha: 0.08)
+                                          : AppColors.surfaceElevated,
+                                      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(emp.name.substring(0, 1).toUpperCase(),
+                                      style: AppTheme.syne(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.primary)),
                                   ),
                                   title: Row(
                                     children: [
-                                      Text(
-                                        emp.name,
-                                        style: const TextStyle(fontWeight: FontWeight.bold),
-                                      ),
+                                      Text(emp.name,
+                                        style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w700)),
                                       if (isSelf) ...[
-                                        const SizedBox(width: 8.0),
+                                        const SizedBox(width: 8),
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(
                                             color: AppColors.primary,
                                             borderRadius: BorderRadius.circular(4),
                                           ),
-                                          child: const Text(
-                                            'VOCÊ',
-                                            style: TextStyle(color: Colors.white, fontSize: 8.0, fontWeight: FontWeight.bold),
-                                          ),
+                                          child: Text('VOCÊ',
+                                            style: AppTheme.jakarta(fontSize: 8, fontWeight: FontWeight.w800, color: Colors.white)),
                                         ),
                                       ],
                                     ],
                                   ),
                                   subtitle: Text(
                                     'Cargo: ${emp.role.toUpperCase()} | ${emp.email}',
-                                    style: const TextStyle(fontSize: 12.0),
-                                  ),
+                                    style: AppTheme.jakarta(fontSize: 12, color: AppColors.textMuted)),
                                   trailing: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      // Active Status Switch
                                       Switch(
                                         value: emp.active,
-                                        activeColor: AppColors.secondary,
+                                        activeColor: AppColors.accent,
                                         onChanged: isSelf 
                                             ? null // prevent self-deactivation
                                             : (val) async {
@@ -185,7 +186,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                                               },
                                       ),
                                       IconButton(
-                                        icon: const Icon(Icons.edit, color: AppColors.primary),
+                                        icon: const Icon(LucideIcons.edit, size: 16, color: AppColors.primary),
                                         tooltip: 'Editar cargo/dados',
                                         onPressed: () => context.push('/employees/${emp.id}/edit'),
                                       ),

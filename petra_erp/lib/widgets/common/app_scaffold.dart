@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 import 'app_drawer.dart';
 
 /// A responsive app scaffold that acts as the shell of the application.
@@ -24,7 +25,7 @@ class AppScaffold extends StatelessWidget {
               width: 280.0,
               child: AppDrawer(isSidebar: true),
             ),
-            const VerticalDivider(width: 1.0, thickness: 1.0, color: Colors.black12),
+            const VerticalDivider(width: 1.0, thickness: 1.0, color: AppColors.border),
             Expanded(child: child),
           ],
         ),

@@ -1,22 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 
-/// A badge that displays how many days a Service Order is stale in its current status.
 class DelayBadge extends StatelessWidget {
   final int daysStale;
 
-  const DelayBadge({
-    super.key,
-    required this.daysStale,
-  });
+  const DelayBadge({super.key, required this.daysStale});
 
-  Color _getBadgeColor() {
+  Color _color() {
     if (daysStale <= 2) return AppColors.success;
     if (daysStale <= 5) return AppColors.warning;
     return AppColors.error;
   }
 
-  String _getBadgeText() {
+  String _text() {
     if (daysStale == 0) return 'Atualizado hoje';
     if (daysStale == 1) return '1 dia sem alteração';
     return '$daysStale dias sem alteração';
@@ -24,32 +22,20 @@ class DelayBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _getBadgeColor();
-    final text = _getBadgeText();
-
+    final color = _color();
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6.0),
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.access_time_rounded,
-            size: 14.0,
-            color: color,
-          ),
-          const SizedBox(width: 4.0),
-          Text(
-            text,
-            style: TextStyle(
-              color: color,
-              fontSize: 12.0,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          Icon(LucideIcons.clock, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(_text(),
+            style: AppTheme.jakarta(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
         ],
       ),
     );

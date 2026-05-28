@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/validators.dart';
 import '../../models/product.dart';
 import '../../providers/product_provider.dart';
@@ -147,7 +149,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                         ),
                         child: Text(
                           _errorMessage!,
-                          style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+                          style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.error),
                         ),
                       ),
                       const SizedBox(height: 16.0),
@@ -158,7 +160,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                       controller: _nameController,
                       decoration: InputDecoration(
                         labelText: 'Nome do Material *',
-                        prefixIcon: Icon(Icons.texture),
+                        prefixIcon: Icon(LucideIcons.layers, size: 16),
                         hintText: 'Ex: Mármore Carrara, Granito Preto São Gabriel',
                       ),
                       validator: (val) => Validators.validateRequired(val, 'Nome do material'),
@@ -173,7 +175,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                             initialValue: _selectedType,
                             decoration: InputDecoration(
                               labelText: 'Tipo *',
-                              prefixIcon: Icon(Icons.category),
+                              prefixIcon: Icon(LucideIcons.tag, size: 16),
                             ),
                             items: _types.map((t) {
                               return DropdownMenuItem<String>(
@@ -197,7 +199,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                             keyboardType: TextInputType.numberWithOptions(decimal: true),
                             decoration: InputDecoration(
                               labelText: 'Preço Base por m\u00B2 (R\$) *',
-                              prefixIcon: Icon(Icons.monetization_on),
+                              prefixIcon: Icon(LucideIcons.dollarSign, size: 16),
                               hintText: '0.00',
                             ),
                             validator: (val) {
@@ -221,7 +223,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                       children: [
                         TextButton(
                           onPressed: () => context.pop(),
-                          child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+                          child: Text('Cancelar', style: AppTheme.jakarta(fontSize: 13, color: AppColors.textMuted)),
                         ),
                         const SizedBox(width: 16.0),
                         ElevatedButton(

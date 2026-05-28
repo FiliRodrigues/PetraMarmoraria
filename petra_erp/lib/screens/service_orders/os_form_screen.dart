@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/constants/os_status.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/validators.dart';
 import '../../models/models.dart';
 import '../../providers/customer_provider.dart';
@@ -270,7 +272,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                         ),
                         child: Text(
                           _errorMessage!,
-                          style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+                          style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.error),
                         ),
                       ),
                       const SizedBox(height: 16.0),
@@ -300,7 +302,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                               focusNode: focusNode,
                               decoration: InputDecoration(
                                 labelText: 'Cliente *',
-                                prefixIcon: Icon(Icons.person),
+                                prefixIcon: const Icon(LucideIcons.user, size: 16),
                                 hintText: 'Digite o nome do cliente...',
                               ),
                               validator: (val) {
@@ -314,7 +316,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                         );
                       },
                       loading: () => const LinearProgressIndicator(),
-                      error: (err, _) => Text('Erro ao carregar clientes: $err', style: const TextStyle(color: AppColors.error)),
+                      error: (err, _) => Text('Erro ao carregar clientes: $err', style: AppTheme.jakarta(color: AppColors.error)),
                     ),
                     const SizedBox(height: 16.0),
 
@@ -331,7 +333,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                                     : null,
                                 decoration: InputDecoration(
                                   labelText: 'Material / Pedra',
-                                  prefixIcon: Icon(Icons.texture),
+                                  prefixIcon: Icon(LucideIcons.layers, size: 16),
                                 ),
                                 hint: const Text('Selecione do catálogo'),
                                 items: products.map((p) {
@@ -358,7 +360,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                               controller: _materialController,
                               decoration: InputDecoration(
                                 labelText: 'Material / Pedra',
-                                prefixIcon: Icon(Icons.texture),
+                                prefixIcon: Icon(LucideIcons.layers, size: 16),
                               ),
                             ),
                           ),
@@ -371,7 +373,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                             controller: _edgeTypeController,
                              decoration: InputDecoration(
                               labelText: 'Tipo de Acabamento',
-                              prefixIcon: Icon(Icons.border_style),
+                              prefixIcon: Icon(LucideIcons.scissors, size: 16),
                               hintText: 'Bisotado, Meia Cana, 45º...',
                             ),
                           ),
@@ -386,7 +388,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                       keyboardType: TextInputType.numberWithOptions(decimal: true),
                       decoration: InputDecoration(
                         labelText: 'Valor Total da OS (R\$) *',
-                        prefixIcon: Icon(Icons.monetization_on),
+                        prefixIcon: Icon(LucideIcons.dollarSign, size: 16),
                         hintText: '0.00',
                       ),
                       validator: (val) => Validators.validateRequired(val, 'Valor da OS'),
@@ -397,13 +399,13 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'Detalhamento de Medições',
-                          style: TextStyle(fontSize: 14.0, fontWeight: FontWeight.bold, color: AppColors.primary),
+                          style: AppTheme.syne(fontSize: 14, fontWeight: FontWeight.w700),
                         ),
                         TextButton.icon(
                           onPressed: _addMeasurementRow,
-                          icon: const Icon(Icons.add, size: 18),
+                          icon: const Icon(LucideIcons.plus, size: 16),
                           label: const Text('Adicionar Linha'),
                         ),
                       ],
@@ -418,7 +420,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                       itemBuilder: (context, index) {
                         final m = _measurements[index];
                         return Card(
-                          color: Colors.grey[50],
+                          color: AppColors.surfaceElevated,
                           margin: const EdgeInsets.only(bottom: 12.0),
                           child: Padding(
                             padding: const EdgeInsets.all(12.0),
@@ -453,7 +455,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                                       ),
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.delete, color: AppColors.error),
+                                      icon: const Icon(LucideIcons.trash2, size: 16, color: AppColors.error),
                                       onPressed: () => _removeMeasurementRow(index),
                                     ),
                                   ],
@@ -495,7 +497,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                             controller: _drawingUrlController,
                             decoration: const InputDecoration(
                               labelText: 'URL da Imagem do Desenho / Croqui',
-                              prefixIcon: Icon(Icons.image),
+                              prefixIcon: Icon(LucideIcons.image, size: 16),
                               hintText: 'https://...',
                             ),
                           ),
@@ -512,7 +514,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                               const SnackBar(content: Text('Desenho anexado (simulado)!')),
                             );
                           },
-                          icon: const Icon(Icons.file_upload),
+                          icon: const Icon(LucideIcons.upload, size: 16),
                           label: const Text('Anexar'),
                         ),
                       ],
@@ -525,7 +527,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                       maxLines: 4,
                       decoration: InputDecoration(
                         labelText: 'Descrição Geral do Serviço / Observações da Produção',
-                        prefixIcon: Icon(Icons.description),
+                        prefixIcon: Icon(LucideIcons.fileText, size: 16),
                         alignLabelWithHint: true,
                       ),
                     ),
@@ -537,7 +539,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                       children: [
                         TextButton(
                           onPressed: () => context.pop(),
-                          child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+                          child: Text('Cancelar', style: AppTheme.jakarta(fontSize: 13, color: AppColors.textMuted)),
                         ),
                         const SizedBox(width: 16.0),
                         ElevatedButton(

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/validators.dart';
 import '../../models/customer.dart';
@@ -165,7 +167,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
                         ),
                         child: Text(
                           _errorMessage!,
-                          style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+                          style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.error),
                         ),
                       ),
                       const SizedBox(height: 16.0),
@@ -176,7 +178,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
                       controller: _nameController,
                       decoration: const InputDecoration(
                         labelText: 'Nome Completo / Razão Social *',
-                        prefixIcon: Icon(Icons.person),
+                        prefixIcon: Icon(LucideIcons.user, size: 16),
                       ),
                       validator: (val) => Validators.validateRequired(val, 'Nome'),
                     ),
@@ -192,7 +194,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
                             inputFormatters: [PhoneInputFormatter()],
                             decoration: const InputDecoration(
                               labelText: 'Telefone Principal *',
-                              prefixIcon: Icon(Icons.phone),
+                              prefixIcon: Icon(LucideIcons.phone, size: 16),
                               hintText: '(00) 00000-0000',
                             ),
                             validator: (val) => Validators.validateRequired(val, 'Telefone principal'),
@@ -206,7 +208,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
                             inputFormatters: [PhoneInputFormatter()],
                             decoration: const InputDecoration(
                               labelText: 'Telefone Secundário',
-                              prefixIcon: Icon(Icons.phone_iphone),
+                              prefixIcon: Icon(LucideIcons.smartphone, size: 16),
                               hintText: '(00) 00000-0000',
                             ),
                           ),
@@ -225,7 +227,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
                             inputFormatters: [CpfCnpjInputFormatter()],
                             decoration: const InputDecoration(
                               labelText: 'CPF / CNPJ',
-                              prefixIcon: Icon(Icons.badge),
+                              prefixIcon: Icon(LucideIcons.creditCard, size: 16),
                               hintText: '000.000.000-00',
                             ),
                           ),
@@ -237,7 +239,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
                             keyboardType: TextInputType.emailAddress,
                             decoration: const InputDecoration(
                               labelText: 'E-mail',
-                              prefixIcon: Icon(Icons.email),
+                              prefixIcon: Icon(LucideIcons.mail, size: 16),
                             ),
                             validator: (val) {
                               if (val != null && val.isNotEmpty) {
@@ -256,7 +258,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
                       controller: _addressController,
                       decoration: const InputDecoration(
                         labelText: 'Endereço (Rua, Número, Bairro)',
-                        prefixIcon: Icon(Icons.location_on),
+                        prefixIcon: Icon(LucideIcons.mapPin, size: 16),
                       ),
                     ),
                     const SizedBox(height: 16.0),
@@ -270,7 +272,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
                             controller: _cityController,
                             decoration: const InputDecoration(
                               labelText: 'Cidade',
-                              prefixIcon: Icon(Icons.location_city),
+                              prefixIcon: Icon(LucideIcons.building2, size: 16),
                             ),
                           ),
                         ),
@@ -296,7 +298,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
                       maxLines: 4,
                       decoration: const InputDecoration(
                         labelText: 'Observações Internas',
-                        prefixIcon: Icon(Icons.note),
+                        prefixIcon: Icon(LucideIcons.fileText, size: 16),
                         alignLabelWithHint: true,
                       ),
                     ),
@@ -308,7 +310,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
                       children: [
                         TextButton(
                           onPressed: () => context.pop(),
-                          child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+                          child: Text('Cancelar', style: AppTheme.jakarta(fontSize: 13, color: AppColors.textMuted)),
                         ),
                         const SizedBox(width: 16.0),
                         ElevatedButton(

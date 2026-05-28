@@ -1,0 +1,2 @@
+ALTER TABLE public.profiles ALTER COLUMN email DROP NOT NULL;
+ALTER TABLE public.profiles ALTER COLUMN email SET DEFAULT NULL;
