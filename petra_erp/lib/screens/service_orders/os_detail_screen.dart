@@ -437,6 +437,15 @@ class _Body extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
+          // ── Timeline de Status ─────────────────────────────────────────
+          if (data.history.isNotEmpty) ...[
+            _SectionLabel(icon: LucideIcons.clock, label: 'HISTÓRICO DE STATUS'),
+            _Card(
+              child: _StatusTimeline(history: data.history),
+            ),
+            const SizedBox(height: 24),
+          ],
+
           // ── Botão imprimir ───────────────────────────────────────────────
           SizedBox(
             height: 46,
@@ -447,8 +456,94 @@ class _Body extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 40),
-        ],
-      ),
+      ],
+    ),
+  );
+}
+
+}
+
+class _StatusTimeline extends StatelessWidget {
+  final List<StatusHistory> history;
+
+  const _StatusTimeline({required this.history});
+
+  @override
+  Widget build(BuildContext context) {
+    final sorted = List<StatusHistory>.from(history)
+      ..sort((a, b) => b.changedAt.compareTo(a.changedAt));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: sorted.asMap().entries.map((entry) {
+        final index = entry.key;
+        final h = entry.value;
+        final isLast = index == sorted.length - 1;
+        final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: 32,
+                child: Column(
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: index == 0 ? AppColors.accent : AppColors.border,
+                      ),
+                    ),
+                    if (!isLast)
+                      Expanded(
+                        child: Container(
+                          width: 2,
+                          color: AppColors.border,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 16, left: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        dateFormat.format(h.changedAt),
+                        style: AppTheme.jakarta(fontSize: 11, color: AppColors.textMuted),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${h.fromStatusLabel} → ${h.toStatusLabel}',
+                        style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                      if (h.changedByName != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          'por ${h.changedByName}',
+                          style: AppTheme.jakarta(fontSize: 11, color: AppColors.textSecondary),
+                        ),
+                      ],
+                      if (h.notes != null && h.notes!.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          h.notes!,
+                          style: AppTheme.jakarta(fontSize: 11, color: AppColors.textMuted).copyWith(fontStyle: FontStyle.italic),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 }

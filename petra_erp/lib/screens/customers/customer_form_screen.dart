@@ -55,11 +55,11 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
     final customersState = ref.read(customerProvider);
     customersState.maybeWhen(
       data: (list) {
-        try {
-          final customer = list.firstWhere((c) => c.id == widget.id);
-          _populateCustomerForm(customer);
+        final idx = list.indexWhere((c) => c.id == widget.id);
+        if (idx != -1) {
+          _populateCustomerForm(list[idx]);
           return;
-        } catch (_) {}
+        }
       },
       orElse: () {},
     );

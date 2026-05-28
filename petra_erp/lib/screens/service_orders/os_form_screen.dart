@@ -99,11 +99,11 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
     final ordersState = ref.read(osProvider);
     ordersState.maybeWhen(
       data: (list) {
-        try {
-          final order = list.firstWhere((o) => o.id == widget.id);
-          _populateForm(order);
+        final idx = list.indexWhere((o) => o.id == widget.id);
+        if (idx != -1) {
+          _populateForm(list[idx]);
           return;
-        } catch (_) {}
+        }
       },
       orElse: () {},
     );

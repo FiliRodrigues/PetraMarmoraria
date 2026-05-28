@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../core/constants/os_status.dart';
 
 @immutable
 class StatusHistory {
@@ -7,9 +8,12 @@ class StatusHistory {
   final String? fromStatus;
   final String toStatus;
   final String changedBy;
-  final String? changedByName; // joined from profile
+  final String? changedByName;
   final DateTime changedAt;
   final String? notes;
+
+  String get fromStatusLabel => fromStatus != null ? (OSStatus.labels[fromStatus!] ?? fromStatus!) : 'Início';
+  String get toStatusLabel => OSStatus.labels[toStatus] ?? toStatus;
 
   const StatusHistory({
     required this.id,

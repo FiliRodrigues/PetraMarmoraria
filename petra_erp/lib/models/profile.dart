@@ -57,6 +57,7 @@ class Profile {
       'avatar_url': avatarUrl,
       'active': active,
       'created_at': createdAt.toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
     };
   }
 

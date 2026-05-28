@@ -54,11 +54,11 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
     final suppliersState = ref.read(supplierProvider);
     suppliersState.maybeWhen(
       data: (list) {
-        try {
-          final supplier = list.firstWhere((s) => s.id == widget.id);
-          _populateSupplierForm(supplier);
+        final idx = list.indexWhere((s) => s.id == widget.id);
+        if (idx != -1) {
+          _populateSupplierForm(list[idx]);
           return;
-        } catch (_) {}
+        }
       },
       orElse: () {},
     );

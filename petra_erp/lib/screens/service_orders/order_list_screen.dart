@@ -264,31 +264,18 @@ class _OrderListScreenState extends ConsumerState<OrderListScreen> {
   }
 
   Widget _buildTable(List<ServiceOrder> rows) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: MediaQuery.of(context).size.width,
-            height: constraints.maxHeight,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildHeader(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    controller: _scrollController,
-                    scrollDirection: Axis.vertical,
-                    child: Column(
-                      children: rows.asMap().entries.map((e) => _buildRow(e.key, e.value)).toList(),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+    return Column(
+      children: [
+        _buildHeader(),
+        const Divider(height: 2, thickness: 2, color: AppColors.border),
+        Expanded(
+          child: ListView.builder(
+            controller: _scrollController,
+            itemCount: rows.length,
+            itemBuilder: (context, index) => _buildRow(index, rows[index]),
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 

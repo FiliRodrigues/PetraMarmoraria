@@ -50,6 +50,8 @@ class FakeCustomerService implements CustomerService {
   );
   @override
   Future<void> deleteCustomer(String id) async {}
+  @override
+  Stream<List<Customer>> streamCustomers() => const Stream.empty();
 }
 
 class FakeProductService implements ProductService {
@@ -65,6 +67,10 @@ class FakeProductService implements ProductService {
   );
   @override
   Future<void> deleteProduct(String id) async {}
+  @override
+  Stream<List<Product>> streamProducts() => const Stream.empty();
+  @override
+  Future<List<Product>> listActive() async => [];
 }
 
 class FakeProfileService implements ProfileService {
@@ -95,6 +101,8 @@ class FakeProfileService implements ProfileService {
     phone: phone,
     createdAt: DateTime.now(),
   );
+  @override
+  Stream<List<Profile>> streamProfiles() => const Stream.empty();
 }
 
 class FakeServiceOrderService implements ServiceOrderService {

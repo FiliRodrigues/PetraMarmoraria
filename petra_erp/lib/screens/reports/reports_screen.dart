@@ -5,6 +5,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../core/constants/os_status.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/constants/months.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/models.dart';
 import '../../providers/finance_provider.dart';
@@ -32,13 +33,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     return List.generate(7, (i) => y - 3 + i);
   }
 
-  String _formatMonth(int m) {
-    const names = [
-      '', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-    ];
-    return names[m];
-  }
+  String _formatMonth(int m) => formatMonth(m);
 
   DateTime get _fromDate {
     final firstDay = DateTime(_filterYear, _filterMonth, 1);

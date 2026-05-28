@@ -56,11 +56,11 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     final productsState = ref.read(productProvider);
     productsState.maybeWhen(
       data: (list) {
-        try {
-          final product = list.firstWhere((p) => p.id == widget.id);
-          _populateProductForm(product);
+        final idx = list.indexWhere((p) => p.id == widget.id);
+        if (idx != -1) {
+          _populateProductForm(list[idx]);
           return;
-        } catch (_) {}
+        }
       },
       orElse: () {},
     );

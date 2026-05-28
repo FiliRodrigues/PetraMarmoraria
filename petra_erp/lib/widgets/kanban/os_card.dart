@@ -25,11 +25,7 @@ class _OSCardState extends ConsumerState<OSCard> {
   Color get _statusColor => AppColors.statusColors(widget.order.status).color;
   Color get _staleColor  => AppColors.stalenessColor(widget.order.daysStale);
 
-  bool get _isDelayed {
-    final o = widget.order;
-    if (o.status == OSStatus.entrega || o.scheduledDate == null) return false;
-    return o.scheduledDate!.isBefore(DateTime.now());
-  }
+  bool get _isDelayed => widget.order.isDelayed;
 
   bool get _isToday {
     final o = widget.order;
