@@ -106,6 +106,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         context.pop();
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Erro ao salvar produto: $e';
       });
@@ -142,7 +143,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                       Container(
                         padding: const EdgeInsets.all(12.0),
                         decoration: BoxDecoration(
-                          color: AppColors.error.withOpacity(0.1),
+                          color: AppColors.error.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8.0),
                         ),
                         child: Text(
@@ -225,7 +226,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                         ),
                         const SizedBox(width: 16.0),
                         ElevatedButton(
-                          onPressed: _saveProduct,
+                          onPressed: _isLoading ? null : _saveProduct,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),

@@ -118,7 +118,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                                 child: ListTile(
                                   leading: CircleAvatar(
                                     backgroundColor: emp.active 
-                                        ? AppColors.secondary.withOpacity(0.2) 
+                                        ? AppColors.secondary.withValues(alpha: 0.2) 
                                         : AppColors.lightGrey,
                                     foregroundColor: AppColors.primary,
                                     child: Text(emp.name.substring(0, 1).toUpperCase()),
@@ -155,7 +155,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                                       // Active Status Switch
                                       Switch(
                                         value: emp.active,
-                                        activeColor: AppColors.secondary,
+                                        activeThumbColor: AppColors.secondary,
                                         onChanged: isSelf 
                                             ? null // prevent self-deactivation
                                             : (val) async {

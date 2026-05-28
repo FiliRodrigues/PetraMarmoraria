@@ -70,7 +70,7 @@ class ProfileScreen extends ConsumerWidget {
 
                         // Role Badge
                         Chip(
-                          backgroundColor: AppColors.primary.withOpacity(0.08),
+                          backgroundColor: AppColors.primary.withValues(alpha: 0.08),
                           label: Text(
                             profile.role.toUpperCase(),
                             style: const TextStyle(

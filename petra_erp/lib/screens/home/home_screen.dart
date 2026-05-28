@@ -147,9 +147,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                   decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.08),
+                    color: AppColors.error.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(8.0),
-                    border: Border.all(color: AppColors.error.withOpacity(0.3), width: 1.0),
+                    border: Border.all(color: AppColors.error.withValues(alpha: 0.3), width: 1.0),
                   ),
                   child: Row(
                     children: [
@@ -212,7 +212,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ),
                                 Switch(
                                   value: _onlyDelayed,
-                                  activeColor: AppColors.secondary,
+                                  activeThumbColor: AppColors.secondary,
                                   onChanged: (val) {
                                     setState(() {
                                       _onlyDelayed = val;
@@ -271,7 +271,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: Row(
             children: [
               CircleAvatar(
-                backgroundColor: color.withOpacity(0.1),
+                backgroundColor: color.withValues(alpha: 0.1),
                 radius: 20.0,
                 child: Icon(icon, color: color, size: 20.0),
               ),

@@ -103,8 +103,26 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const EmployeeFormScreen(),
           ),
           GoRoute(
+            path: '/employees/:id/edit',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return EmployeeFormScreen(id: id);
+            },
+          ),
+          GoRoute(
             path: '/products',
             builder: (context, state) => const ProductListScreen(),
+          ),
+          GoRoute(
+            path: '/products/new',
+            builder: (context, state) => const ProductFormScreen(),
+          ),
+          GoRoute(
+            path: '/products/:id/edit',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return ProductFormScreen(id: id);
+            },
           ),
           GoRoute(
             path: '/profile',

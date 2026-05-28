@@ -45,6 +45,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
       // GoRouter redirect logic in app.dart will automatically navigate to '/'
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
       });

@@ -228,7 +228,7 @@ class OSDetailScreen extends ConsumerWidget {
                                 vertical: 6,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.secondary.withOpacity(0.15),
+                                color: AppColors.secondary.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(color: AppColors.secondary),
                               ),

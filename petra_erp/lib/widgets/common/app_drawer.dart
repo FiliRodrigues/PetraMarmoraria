@@ -57,7 +57,7 @@ class AppDrawer extends ConsumerWidget {
               ),
               Text(
                 profile?.email ?? '',
-                style: TextStyle(color: AppColors.background.withOpacity(0.8), fontSize: 12),
+                style: TextStyle(color: AppColors.background.withValues(alpha: 0.8), fontSize: 12),
               ),
             ],
           ),
@@ -109,10 +109,10 @@ class AppDrawer extends ConsumerWidget {
     final isSelected = location == route || (route != '/' && location.startsWith(route));
     return ListTile(
       selected: isSelected,
-      selectedTileColor: AppColors.secondary.withOpacity(0.15),
+      selectedTileColor: AppColors.secondary.withValues(alpha: 0.15),
       selectedColor: AppColors.background,
-      iconColor: AppColors.background.withOpacity(0.7),
-      textColor: AppColors.background.withOpacity(0.7),
+      iconColor: AppColors.background.withValues(alpha: 0.7),
+      textColor: AppColors.background.withValues(alpha: 0.7),
       leading: Icon(isSelected ? activeIcon : icon, color: isSelected ? AppColors.secondary : null),
       title: Text(label, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
       onTap: () {

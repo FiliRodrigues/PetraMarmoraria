@@ -97,6 +97,7 @@ class _StatusTransitionDialogState extends ConsumerState<StatusTransitionDialog>
         Navigator.of(context).pop(true);
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
       });
@@ -153,7 +154,7 @@ class _StatusTransitionDialogState extends ConsumerState<StatusTransitionDialog>
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.05),
+                    color: AppColors.primary.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(8.0),
                     border: Border.all(color: AppColors.lightGrey),
                   ),
@@ -164,7 +165,7 @@ class _StatusTransitionDialogState extends ConsumerState<StatusTransitionDialog>
                 )
               else
                 DropdownButtonFormField<String>(
-                  value: _selectedStatus,
+                  initialValue: _selectedStatus,
                   decoration: const InputDecoration(
                     contentPadding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
                   ),
@@ -202,7 +203,7 @@ class _StatusTransitionDialogState extends ConsumerState<StatusTransitionDialog>
                       );
                     }
                     return DropdownButtonFormField<String>(
-                      value: _selectedEmployeeId,
+                      initialValue: _selectedEmployeeId,
                       hint: const Text('Selecione o funcionário'),
                       decoration: const InputDecoration(
                         contentPadding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),

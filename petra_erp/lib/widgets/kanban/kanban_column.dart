@@ -24,16 +24,15 @@ class KanbanColumn extends ConsumerWidget {
     final statusLabel = OSStatus.labels[status] ?? status;
 
     return DragTarget<ServiceOrder>(
-      onWillAccept: (order) {
-        if (order == null) return false;
+      onWillAcceptWithDetails: (details) {
         // Verify sequence transition
-        return OSStatus.canMoveTo(order.status, status);
+        return OSStatus.canMoveTo(details.data.status, status);
       },
-      onAccept: (order) {
+      onAcceptWithDetails: (details) {
         showDialog(
           context: context,
           builder: (context) => StatusTransitionDialog(
-            order: order,
+            order: details.data,
             targetStatus: status,
             onTransitionCompleted: () {
               ref.invalidate(osProvider);
@@ -51,8 +50,8 @@ class KanbanColumn extends ConsumerWidget {
           margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
           decoration: BoxDecoration(
             color: isHovered 
-                ? AppColors.secondary.withOpacity(0.08) 
-                : Colors.white.withOpacity(0.4),
+                ? AppColors.secondary.withValues(alpha: 0.08) 
+                : Colors.white.withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(12.0),
             border: Border.all(
               color: isHovered ? AppColors.secondary : Colors.transparent,

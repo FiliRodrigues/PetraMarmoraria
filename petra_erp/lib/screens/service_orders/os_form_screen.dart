@@ -51,6 +51,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
     
     // Check if we need to pre-link customer from query parameters
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       if (!_isEditing) {
         final state = GoRouterState.of(context);
         final preLinkedCustomerId = state.uri.queryParameters['customerId'];
@@ -226,6 +227,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
         context.pop();
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Erro ao salvar OS: $e';
       });
@@ -265,7 +267,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                       Container(
                         padding: const EdgeInsets.all(12.0),
                         decoration: BoxDecoration(
-                          color: AppColors.error.withOpacity(0.1),
+                          color: AppColors.error.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8.0),
                         ),
                         child: Text(
@@ -326,7 +328,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                           child: productsState.when(
                             data: (products) {
                               return DropdownButtonFormField<String>(
-                                value: products.any((p) => p.name == _materialController.text) 
+                                initialValue: products.any((p) => p.name == _materialController.text)
                                     ? _materialController.text 
                                     : null,
                                 decoration: InputDecoration(
@@ -541,7 +543,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                         ),
                         const SizedBox(width: 16.0),
                         ElevatedButton(
-                          onPressed: _saveOrder,
+                          onPressed: _isLoading ? null : _saveOrder,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),

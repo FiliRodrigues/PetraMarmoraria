@@ -46,7 +46,9 @@ class ServiceOrderNotifier extends StateNotifier<AsyncValue<List<ServiceOrder>>>
         notes: notes,
         employeeId: employeeId,
       );
-      // Reload is handled by stream subscription, but we can call it here for faster UI updates
+      // Reload immediately for responsive UI. The stream subscription also
+      // reloads on DB changes (and is the only path that brings the customer
+      // join), so realtime stays the source of truth if it is enabled.
       await loadOrders();
     } catch (e) {
       rethrow;

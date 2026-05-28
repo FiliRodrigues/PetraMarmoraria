@@ -124,6 +124,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
         context.pop(); // return to previous screen
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Erro ao salvar cliente: $e';
       });
@@ -160,7 +161,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
                       Container(
                         padding: const EdgeInsets.all(12.0),
                         decoration: BoxDecoration(
-                          color: AppColors.error.withOpacity(0.1),
+                          color: AppColors.error.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8.0),
                         ),
                         child: Text(
@@ -312,7 +313,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
                         ),
                         const SizedBox(width: 16.0),
                         ElevatedButton(
-                          onPressed: _saveCustomer,
+                          onPressed: _isLoading ? null : _saveCustomer,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),

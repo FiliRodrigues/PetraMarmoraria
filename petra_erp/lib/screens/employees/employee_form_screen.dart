@@ -148,6 +148,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
         }
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Erro ao salvar funcionário: $e';
       });
@@ -184,7 +185,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                       Container(
                         padding: const EdgeInsets.all(12.0),
                         decoration: BoxDecoration(
-                          color: AppColors.error.withOpacity(0.1),
+                          color: AppColors.error.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8.0),
                         ),
                         child: Text(
@@ -255,7 +256,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
 
                     // Role Dropdown
                     DropdownButtonFormField<String>(
-                      value: _selectedRole,
+                      initialValue: _selectedRole,
                       decoration: const InputDecoration(
                         labelText: 'Cargo / Função *',
                         prefixIcon: Icon(Icons.work),
@@ -287,7 +288,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                           const Spacer(),
                           Switch(
                             value: _isActive,
-                            activeColor: AppColors.secondary,
+                            activeThumbColor: AppColors.secondary,
                             onChanged: (val) {
                               setState(() {
                                 _isActive = val;
@@ -312,7 +313,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                         ),
                         const SizedBox(width: 16.0),
                         ElevatedButton(
-                          onPressed: _saveEmployee,
+                          onPressed: _isLoading ? null : _saveEmployee,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
@@ -348,7 +349,7 @@ class AlertBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
-        color: type == 'warning' ? Colors.orange.withOpacity(0.1) : Colors.blue.withOpacity(0.1),
+        color: type == 'warning' ? Colors.orange.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8.0),
         border: Border.all(color: type == 'warning' ? Colors.orange : Colors.blue),
       ),
