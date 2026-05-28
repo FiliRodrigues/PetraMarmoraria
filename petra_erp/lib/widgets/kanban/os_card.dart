@@ -69,15 +69,17 @@ class _OSCardState extends ConsumerState<OSCard> {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Faixa de staleness (verde/âmbar/vermelho) na borda esquerda.
-              Container(width: 3, color: _staleColor),
-              Expanded(
-                child: Padding(
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Faixa de staleness (verde/âmbar/vermelho) na borda esquerda.
+                Container(width: 3, color: _staleColor),
+                Expanded(
+                  child: Padding(
         padding: const EdgeInsets.all(11),
         child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Row 1: OS# + badge ────────────────────────────────────────
@@ -163,7 +165,8 @@ class _OSCardState extends ConsumerState<OSCard> {
                   ),
                 ),
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -12,7 +12,6 @@ class OSStatus {
   static const List<String> ordered = [
     orcamento,
     aprovado,
-    recebido,
     esperandoMaterial,
     corte,
     montagem,
@@ -33,7 +32,6 @@ class OSStatus {
   static const List<String> pedidosStatuses = [
     orcamento,
     aprovado,
-    recebido,
     esperandoMaterial,
   ];
 
