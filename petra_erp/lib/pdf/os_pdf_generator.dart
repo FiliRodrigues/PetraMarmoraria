@@ -109,8 +109,20 @@ Future<Uint8List> generateServiceOrderPdf({
     }
   }
 
+  // Vendedor responsável: prioriza created_by (novo campo); cai na heurística
+  // antiga (histórico/perfil) apenas para OS legadas.
+  if (order.createdByName != null && order.createdByName!.isNotEmpty) {
+    vendedor = order.createdByName!;
+  } else if (order.createdBy != null) {
+    final creator = profiles.firstWhere(
+      (p) => p.id == order.createdBy,
+      orElse: () => Profile(id: '', email: '', name: '', createdAt: DateTime(1970)),
+    );
+    if (creator.name.isNotEmpty) vendedor = creator.name;
+  }
+
   // Try to find the vendedor from status history or profiles
-  if (history.isNotEmpty) {
+  if (vendedor == 'Não atribuído' && history.isNotEmpty) {
     final sortedHistory = List<StatusHistory>.from(history)
       ..sort((a, b) => a.changedAt.compareTo(b.changedAt));
     final firstEntry = sortedHistory.first;

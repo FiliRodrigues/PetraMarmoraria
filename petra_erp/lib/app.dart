@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'core/theme/app_theme.dart';
@@ -129,8 +130,16 @@ final routerProvider = Provider<GoRouter>((ref) {
             },
           ),
           GoRoute(
+            path: '/estoque',
+            builder: (context, state) => const InventoryScreen(),
+          ),
+          GoRoute(
             path: '/reports',
             builder: (context, state) => const ReportsScreen(),
+          ),
+          GoRoute(
+            path: '/agenda',
+            builder: (context, state) => const AgendaScreen(),
           ),
           GoRoute(
             path: '/profile',
@@ -154,6 +163,16 @@ class PetraApp extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
+      locale: const Locale('pt', 'BR'),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('pt', 'BR'),
+        Locale('en', 'US'),
+      ],
     );
   }
 }

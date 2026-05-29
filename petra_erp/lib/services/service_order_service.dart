@@ -9,12 +9,16 @@ class ServiceOrderService {
 
   ServiceOrderService(this._client);
 
+  // Join do criador (vendedor). FK explícita p/ desambiguar profiles.
+  static const _selectWithJoins =
+      '*, customers(name), creator:profiles!service_orders_created_by_fkey(name)';
+
   // Fetch all OS, including the client join
   Future<List<ServiceOrder>> getServiceOrders() async {
     try {
       final response = await _client
           .from('service_orders')
-          .select('*, customers(name)')
+          .select(_selectWithJoins)
           .order('queue_position', ascending: true);
       return (response as List).map((e) {
         final customerName = e['customers'] != null ? e['customers']['name'] as String? : null;
@@ -37,7 +41,7 @@ class ServiceOrderService {
     try {
       final response = await _client
           .from('service_orders')
-          .select('*, customers(name)')
+          .select(_selectWithJoins)
           .eq('id', id)
           .single();
       final customerName = response['customers'] != null ? response['customers']['name'] as String? : null;
@@ -50,6 +54,8 @@ class ServiceOrderService {
   Future<ServiceOrder> createServiceOrder(ServiceOrder order) async {
     try {
       final data = order.toMap()..remove('id')..remove('display_number')..remove('created_at')..remove('updated_at');
+      // Grava o vendedor responsável = usuário logado (se ainda não definido).
+      data['created_by'] ??= _client.auth.currentUser?.id;
       final response = await _client.from('service_orders').insert(data).select().single();
       return ServiceOrder.fromMap(response);
     } catch (e) {
@@ -59,7 +65,12 @@ class ServiceOrderService {
 
   Future<ServiceOrder> updateServiceOrder(ServiceOrder order) async {
     try {
-      final data = order.toMap()..remove('created_at')..remove('updated_at')..remove('display_number');
+      // Não sobrescreve created_by no update (preserva o vendedor original).
+      final data = order.toMap()
+        ..remove('created_at')
+        ..remove('updated_at')
+        ..remove('display_number')
+        ..remove('created_by');
       final response = await _client
           .from('service_orders')
           .update(data)
@@ -178,6 +189,27 @@ class ServiceOrderService {
       return (response as List).map((e) {
         final profileName = e['profiles'] != null ? e['profiles']['name'] as String? : null;
         return StatusHistory.fromMap(e, changedByName: profileName);
+      }).toList();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Fetch ALL assignments (para relatório de produção por funcionário).
+  // Filtro opcional por período sobre assigned_at.
+  Future<List<OrderAssignment>> getAllAssignments({DateTime? from, DateTime? to}) async {
+    try {
+      var query = _client.from('order_assignments').select('*, profiles(name)');
+      if (from != null) {
+        query = query.gte('assigned_at', from.toIso8601String());
+      }
+      if (to != null) {
+        query = query.lte('assigned_at', to.toIso8601String());
+      }
+      final response = await query.order('assigned_at', ascending: false);
+      return (response as List).map((e) {
+        final employeeName = e['profiles'] != null ? e['profiles']['name'] as String? : null;
+        return OrderAssignment.fromMap(e, employeeName: employeeName);
       }).toList();
     } catch (e) {
       rethrow;

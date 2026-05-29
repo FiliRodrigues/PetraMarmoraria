@@ -26,6 +26,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   
   final _nameController = TextEditingController();
   final _priceController = TextEditingController();
+  final _stockController = TextEditingController();
+  final _minStockController = TextEditingController();
 
   String _selectedType = 'marmore';
   bool _isEditing = false;
@@ -56,8 +58,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
           final product = list.firstWhere((p) => p.id == widget.id);
           _nameController.text = product.name;
           _priceController.text = product.unitPrice.toStringAsFixed(2);
-          _selectedType = _types.contains(product.type.toLowerCase()) 
-              ? product.type.toLowerCase() 
+          _stockController.text = product.stockQuantity.toString();
+          _minStockController.text = product.minStock.toString();
+          _selectedType = _types.contains(product.type.toLowerCase())
+              ? product.type.toLowerCase()
               : 'marmore';
         } catch (_) {
           _errorMessage = 'Produto não encontrado no cache.';
@@ -73,6 +77,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   void dispose() {
     _nameController.dispose();
     _priceController.dispose();
+    _stockController.dispose();
+    _minStockController.dispose();
     super.dispose();
   }
 
@@ -85,6 +91,17 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     });
 
     final price = double.tryParse(_priceController.text.replaceAll(',', '.')) ?? 0.0;
+    final minStock = double.tryParse(_minStockController.text.replaceAll(',', '.')) ?? 0.0;
+    // Estoque atual só é definido na criação; na edição é controlado por
+    // movimentações (não sobrescrevemos pelo formulário).
+    final initialStock = double.tryParse(_stockController.text.replaceAll(',', '.')) ?? 0.0;
+
+    final existing = _isEditing
+        ? ref.read(productProvider).value?.cast<Product?>().firstWhere(
+              (p) => p?.id == widget.id,
+              orElse: () => null,
+            )
+        : null;
 
     final product = Product(
       id: _isEditing ? widget.id! : const Uuid().v4(),
@@ -92,6 +109,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       type: _selectedType,
       unitPrice: price,
       unit: 'm2',
+      stockQuantity: _isEditing ? (existing?.stockQuantity ?? 0.0) : initialStock,
+      minStock: minStock,
       active: true,
       createdAt: DateTime.now(),
     );
@@ -214,6 +233,45 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 16.0),
+
+                    // Estoque atual (só criação) + Estoque mínimo
+                    Row(
+                      children: [
+                        if (!_isEditing) ...[
+                          Expanded(
+                            child: TextFormField(
+                              controller: _stockController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: const InputDecoration(
+                                labelText: 'Estoque atual',
+                                prefixIcon: Icon(Icons.inventory_2),
+                                hintText: '0',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16.0),
+                        ],
+                        Expanded(
+                          child: TextFormField(
+                            controller: _minStockController,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: const InputDecoration(
+                              labelText: 'Estoque mínimo',
+                              prefixIcon: Icon(Icons.warning_amber),
+                              hintText: '0',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_isEditing) ...[
+                      const SizedBox(height: 8.0),
+                      Text(
+                        'O estoque atual é alterado por movimentações na tela de Estoque.',
+                        style: TextStyle(fontSize: 12, color: AppColors.grey),
+                      ),
+                    ],
                     const SizedBox(height: 32.0),
 
                     // Actions Row

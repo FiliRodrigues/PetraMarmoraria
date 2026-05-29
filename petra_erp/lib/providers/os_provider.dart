@@ -118,3 +118,9 @@ final osHistoryProvider = FutureProvider.family<List<StatusHistory>, String>((re
   final service = ref.watch(serviceOrderServiceProvider);
   return await service.getStatusHistory(orderId);
 });
+
+// Provides ALL employee assignments (relatório de produção por funcionário).
+final allAssignmentsProvider = FutureProvider<List<OrderAssignment>>((ref) async {
+  final service = ref.watch(serviceOrderServiceProvider);
+  return await service.getAllAssignments();
+});

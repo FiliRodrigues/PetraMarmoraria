@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/os_status.dart';
@@ -22,8 +23,11 @@ class _OSListScreenState extends ConsumerState<OSListScreen> {
   final _searchController = TextEditingController();
   String _searchText = '';
 
-  /// `null` representa a aba "Todas".
+  /// `null` representa a aba "Todas". [_kArchivedFilter] é a aba "Arquivadas".
   String? _statusFilter;
+
+  /// Sentinel usado como filtro da aba "Arquivadas".
+  static const String _kArchivedFilter = '__archived__';
 
   // Abas exibidas na barra de status (subconjunto/ordem do protótipo).
   static const List<String> _tabs = [
@@ -40,6 +44,14 @@ class _OSListScreenState extends ConsumerState<OSListScreen> {
     super.initState();
     _searchController.addListener(() {
       setState(() => _searchText = _searchController.text);
+    });
+    // Permite abrir direto na aba "Arquivadas" via /orders?arquivadas=1.
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final arquivadas = GoRouterState.of(context).uri.queryParameters['arquivadas'];
+      if (arquivadas == '1') {
+        setState(() => _statusFilter = _kArchivedFilter);
+      }
     });
   }
 
@@ -86,9 +98,19 @@ class _OSListScreenState extends ConsumerState<OSListScreen> {
                       desc.contains(query);
                 }).toList();
 
-          final visible = _statusFilter == null
-              ? searched
-              : searched.where((o) => o.status == _statusFilter).toList();
+          // OS arquivadas (entregues há 7+ dias) ficam fora das abas normais;
+          // só aparecem na aba dedicada "Arquivadas".
+          final active = searched.where((o) => !o.isArchived).toList();
+          final archived = searched.where((o) => o.isArchived).toList();
+
+          final List<ServiceOrder> visible;
+          if (_statusFilter == _kArchivedFilter) {
+            visible = archived;
+          } else if (_statusFilter == null) {
+            visible = active;
+          } else {
+            visible = active.where((o) => o.status == _statusFilter).toList();
+          }
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -103,7 +125,9 @@ class _OSListScreenState extends ConsumerState<OSListScreen> {
               ),
               _StatusTabs(
                 tabs: _tabs,
-                all: searched,
+                all: active,
+                archivedCount: archived.length,
+                archivedFilter: _kArchivedFilter,
                 selected: _statusFilter,
                 onSelect: (s) => setState(() => _statusFilter = s),
               ),
@@ -368,12 +392,16 @@ class _StaleBadge extends StatelessWidget {
 class _StatusTabs extends StatelessWidget {
   final List<String> tabs;
   final List<ServiceOrder> all;
+  final int archivedCount;
+  final String archivedFilter;
   final String? selected;
   final ValueChanged<String?> onSelect;
 
   const _StatusTabs({
     required this.tabs,
     required this.all,
+    required this.archivedCount,
+    required this.archivedFilter,
     required this.selected,
     required this.onSelect,
   });
@@ -399,6 +427,14 @@ class _StatusTabs extends StatelessWidget {
               color: AppColors.statusColors(s).color,
               active: selected == s,
               onTap: () => onSelect(s),
+            ),
+          if (archivedCount > 0)
+            _Tab(
+              label: 'Arquivadas',
+              count: archivedCount,
+              color: AppColors.textMuted,
+              active: selected == archivedFilter,
+              onTap: () => onSelect(archivedFilter),
             ),
         ],
       ),

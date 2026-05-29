@@ -127,6 +127,8 @@ class FakeServiceOrderService implements ServiceOrderService {
   Future<List<StatusHistory>> getStatusHistory(String orderId) async => [];
   @override
   Future<List<OrderAssignment>> getAssignments(String orderId) async => [];
+  @override
+  Future<List<OrderAssignment>> getAllAssignments({DateTime? from, DateTime? to}) async => [];
 }
 
 class MockAuthNotifier extends AuthNotifier {

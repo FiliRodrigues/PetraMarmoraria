@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/constants/os_status.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/date_utils.dart';
 import '../../core/utils/validators.dart';
 import '../../models/models.dart';
 import '../../providers/customer_provider.dart';
@@ -38,6 +39,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
 
   Customer? _selectedCustomer;
   List<Map<String, String>> _measurements = [];
+  DateTime? _scheduledDate;
   bool _isEditing = false;
   bool _isLoading = false;
   String? _errorMessage;
@@ -98,6 +100,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
           _drawingUrlController.text = order.drawingUrl ?? '';
           _currentStatus = order.status;
           _queuePosition = order.queuePosition;
+          _scheduledDate = order.scheduledDate;
 
           // Customer
           _preLinkCustomer(order.customerId);
@@ -162,6 +165,23 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
     });
   }
 
+  Future<void> _pickScheduledDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      locale: const Locale('pt', 'BR'),
+      initialDate: _scheduledDate ?? now,
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 3),
+      helpText: 'Data de entrega prevista',
+      cancelText: 'Cancelar',
+      confirmText: 'Confirmar',
+    );
+    if (picked != null) {
+      setState(() => _scheduledDate = picked);
+    }
+  }
+
   Future<void> _saveOrder() async {
     if (!_formKey.currentState!.validate()) return;
     
@@ -212,6 +232,7 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
       totalValue: val,
       measurements: measurementsMap,
       drawingUrl: _drawingUrlController.text.trim().isEmpty ? null : _drawingUrlController.text.trim(),
+      scheduledDate: _scheduledDate,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
       statusChangedAt: DateTime.now(),
@@ -392,6 +413,35 @@ class _OSFormScreenState extends ConsumerState<OSFormScreen> {
                         hintText: '0.00',
                       ),
                       validator: (val) => Validators.validateRequired(val, 'Valor da OS'),
+                    ),
+                    const SizedBox(height: 16.0),
+
+                    // 3b. Data de entrega prevista (opcional)
+                    InkWell(
+                      onTap: _pickScheduledDate,
+                      borderRadius: BorderRadius.circular(8),
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: 'Data de entrega prevista',
+                          prefixIcon: const Icon(Icons.event),
+                          suffixIcon: _scheduledDate != null
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 18),
+                                  tooltip: 'Limpar data',
+                                  onPressed: () => setState(() => _scheduledDate = null),
+                                )
+                              : const Icon(Icons.arrow_drop_down),
+                        ),
+                        child: Text(
+                          _scheduledDate != null
+                              ? AppDateUtils.formatDate(_scheduledDate)
+                              : 'Selecione uma data (opcional)',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: _scheduledDate != null ? AppColors.primary : AppColors.textMuted,
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 24.0),
 

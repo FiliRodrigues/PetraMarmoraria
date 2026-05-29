@@ -17,6 +17,8 @@ class ServiceOrder {
   final double totalValue;
   final DateTime statusChangedAt;
   final DateTime? scheduledDate;
+  final String? createdBy; // Vendedor responsável (profiles.id)
+  final String? createdByName; // From creator join (profiles.name)
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -35,6 +37,8 @@ class ServiceOrder {
     this.totalValue = 0.0,
     required this.statusChangedAt,
     this.scheduledDate,
+    this.createdBy,
+    this.createdByName,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -55,6 +59,11 @@ class ServiceOrder {
     final now = DateTime.now();
     return now.difference(statusChangedAt).inDays;
   }
+
+  /// OS entregue há 7+ dias: sai do Kanban mas permanece no banco/relatórios.
+  bool get isArchived =>
+      status == OSStatus.entrega &&
+      DateTime.now().difference(statusChangedAt).inDays >= 7;
 
   String get statusLabel {
     return OSStatus.labels[status] ?? status;
@@ -79,6 +88,8 @@ class ServiceOrder {
     double? totalValue,
     DateTime? statusChangedAt,
     DateTime? scheduledDate,
+    String? createdBy,
+    String? createdByName,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -97,6 +108,8 @@ class ServiceOrder {
       totalValue: totalValue ?? this.totalValue,
       statusChangedAt: statusChangedAt ?? this.statusChangedAt,
       scheduledDate: scheduledDate ?? this.scheduledDate,
+      createdBy: createdBy ?? this.createdBy,
+      createdByName: createdByName ?? this.createdByName,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -117,12 +130,13 @@ class ServiceOrder {
       'total_value': totalValue,
       'status_changed_at': statusChangedAt.toIso8601String(),
       'scheduled_date': scheduledDate?.toIso8601String().substring(0, 10), // date only
+      'created_by': createdBy,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
   }
 
-  factory ServiceOrder.fromMap(Map<String, dynamic> map, {String? customerName}) {
+  factory ServiceOrder.fromMap(Map<String, dynamic> map, {String? customerName, String? createdByName}) {
     return ServiceOrder(
       id: map['id'] as String,
       displayNumber: map['display_number'] as int? ?? 0,
@@ -139,10 +153,13 @@ class ServiceOrder {
       statusChangedAt: map['status_changed_at'] != null 
           ? DateTime.parse(map['status_changed_at'] as String)
           : DateTime.now(),
-      scheduledDate: map['scheduled_date'] != null 
+      scheduledDate: map['scheduled_date'] != null
           ? DateTime.parse(map['scheduled_date'] as String)
           : null,
-      createdAt: map['created_at'] != null 
+      createdBy: map['created_by'] as String?,
+      createdByName: createdByName ??
+          (map['creator'] != null ? map['creator']['name'] as String? : null),
+      createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'] as String)
           : DateTime.now(),
       updatedAt: map['updated_at'] != null 
@@ -169,6 +186,8 @@ class ServiceOrder {
         other.totalValue == totalValue &&
         other.statusChangedAt == statusChangedAt &&
         other.scheduledDate == scheduledDate &&
+        other.createdBy == createdBy &&
+        other.createdByName == createdByName &&
         other.createdAt == createdAt &&
         other.updatedAt == updatedAt;
   }
@@ -190,6 +209,8 @@ class ServiceOrder {
       totalValue,
       statusChangedAt,
       scheduledDate,
+      createdBy,
+      createdByName,
       createdAt,
       updatedAt,
     );

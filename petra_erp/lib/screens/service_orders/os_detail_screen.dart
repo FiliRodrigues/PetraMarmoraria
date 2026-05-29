@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
+import '../../core/constants/payment_constants.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/date_utils.dart';
+import '../../core/utils/formatters.dart';
+import '../../core/utils/whatsapp.dart';
 import 'os_print_screen.dart';
 
 /// Container class to hold all data needed to render the Service Order Details.
@@ -157,7 +162,19 @@ class OSDetailScreen extends ConsumerWidget {
             }
           }
 
-          if (data.history.isNotEmpty) {
+          // Vendedor responsável: prioriza created_by (novo campo); cai na
+          // heurística antiga (histórico/perfil) apenas para OS legadas.
+          if (order.createdByName != null && order.createdByName!.isNotEmpty) {
+            vendedor = order.createdByName!;
+          } else if (order.createdBy != null) {
+            final creator = data.profiles.firstWhere(
+              (p) => p.id == order.createdBy,
+              orElse: () => Profile(id: '', email: '', name: '', createdAt: DateTime(1970, 1, 1)),
+            );
+            if (creator.name.isNotEmpty) vendedor = creator.name;
+          }
+
+          if (vendedor == 'Não atribuído' && data.history.isNotEmpty) {
             final sortedHistory = List<StatusHistory>.from(data.history)
               ..sort((a, b) => a.changedAt.compareTo(b.changedAt));
             final firstEntry = sortedHistory.first;
@@ -459,6 +476,10 @@ class OSDetailScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
 
+                // Avisar cliente por WhatsApp
+                _WhatsAppButton(order: order, customer: customer),
+                const SizedBox(height: 12),
+
                 // Direct Action Print Button
                 SizedBox(
                   width: double.infinity,
@@ -588,6 +609,53 @@ class OSDetailScreen extends ConsumerWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// Botão "Avisar cliente (WhatsApp)". Desabilita quando não há telefone.
+class _WhatsAppButton extends StatelessWidget {
+  final ServiceOrder order;
+  final Customer? customer;
+  const _WhatsAppButton({required this.order, required this.customer});
+
+  static const _whatsappGreen = Color(0xFF25D366);
+
+  @override
+  Widget build(BuildContext context) {
+    final phone = customer?.phone ?? '';
+    final hasPhone = phone.trim().isNotEmpty;
+
+    final button = SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: hasPhone ? _whatsappGreen : Colors.grey.shade400,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        icon: const Icon(LucideIcons.messageCircle),
+        label: const Text('Avisar cliente (WhatsApp)',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        onPressed: hasPhone
+            ? () async {
+                final message = WhatsApp.messageForOrder(order, customerName: customer?.name);
+                final ok = await WhatsApp.open(phone: phone, message: message);
+                if (!ok && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Não foi possível abrir o WhatsApp.')),
+                  );
+                }
+              }
+            : null,
+      ),
+    );
+
+    if (hasPhone) return button;
+    return Tooltip(
+      message: 'Cadastre o telefone do cliente para avisar pelo WhatsApp',
+      child: button,
     );
   }
 }

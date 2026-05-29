@@ -69,8 +69,11 @@ class _DrawerBody extends StatelessWidget {
               if (isAdmin)
               _item(ctx, LucideIcons.hardHat,         'Funcionários',      '/employees', location),
               _item(ctx, LucideIcons.package,         'Produtos',          '/products',  location),
+              _sectionLabel('ESTOQUE'),
+              _item(ctx, LucideIcons.boxes,           'Estoque',           '/estoque',   location),
               _sectionLabel('ANÁLISE'),
               _item(ctx, LucideIcons.barChart2,       'Relatórios',        '/reports',   location),
+              _item(ctx, LucideIcons.calendarDays,    'Agenda',            '/agenda',    location),
               _sectionLabel('CONTA'),
               _item(ctx, LucideIcons.user,            'Meu Perfil',        '/profile',   location),
             ],

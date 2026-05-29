@@ -7,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/models.dart';
 import '../../providers/os_provider.dart';
+import '../../providers/stock_provider.dart';
 import '../../widgets/widgets.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -52,7 +53,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildContent(BuildContext context, List<ServiceOrder> orders) {
+  Widget _buildContent(BuildContext context, List<ServiceOrder> allOrders) {
+    // OS entregues há 7+ dias saem do Kanban (permanecem no banco/relatórios).
+    final orders   = allOrders.where((o) => !o.isArchived).toList();
     final today    = DateTime.now();
     final todayD   = DateTime(today.year, today.month, today.day);
 
@@ -68,6 +71,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return DateTime(o.scheduledDate!.year, o.scheduledDate!.month, o.scheduledDate!.day)
           .isBefore(todayD);
     }).length;
+
+    final lowStockCount = ref.watch(lowStockProductsProvider).length;
 
     // Fura-fila
     String? queueAlert;
@@ -185,7 +190,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
 
         // ── Alertas ──────────────────────────────────────────────────────────
-        if (vencidasCount > 0 || hojeCount > 0 || queueAlert != null)
+        if (vencidasCount > 0 || hojeCount > 0 || queueAlert != null || lowStockCount > 0)
           Container(
             color: AppColors.surface,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -206,6 +211,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               if (queueAlert != null)
                 _AlertBanner(icon: LucideIcons.alertCircle, text: queueAlert!, color: AppColors.corte),
+              if (lowStockCount > 0)
+                _AlertBanner(
+                  icon: LucideIcons.packageX,
+                  text: '$lowStockCount material(is) com estoque baixo',
+                  color: AppColors.espMaterial,
+                  onTap: () => context.push('/estoque'),
+                ),
             ]),
           ),
 

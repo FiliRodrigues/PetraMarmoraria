@@ -42,3 +42,15 @@ final profileServiceProvider = Provider<ProfileService>((ref) {
   final client = ref.watch(supabaseClientProvider);
   return ProfileService(client);
 });
+
+// Provides the StockService
+final stockServiceProvider = Provider<StockService>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  return StockService(client);
+});
+
+// Provides the PaymentService
+final paymentServiceProvider = Provider<PaymentService>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  return PaymentService(client);
+});
