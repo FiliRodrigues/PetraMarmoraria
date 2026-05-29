@@ -7,7 +7,6 @@ import '../../providers/providers.dart';
 import '../../core/constants/payment_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/date_utils.dart';
-import '../../core/utils/formatters.dart';
 import '../../core/utils/whatsapp.dart';
 import 'os_print_screen.dart';
 
@@ -474,6 +473,11 @@ class OSDetailScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
+
+                // Financeiro
+                _buildSectionHeader('FINANCEIRO', Icons.payments),
+                _FinanceSection(order: order),
                 const SizedBox(height: 24),
 
                 // Avisar cliente por WhatsApp
@@ -656,6 +660,403 @@ class _WhatsAppButton extends StatelessWidget {
     return Tooltip(
       message: 'Cadastre o telefone do cliente para avisar pelo WhatsApp',
       child: button,
+    );
+  }
+}
+
+/// Seção "Financeiro" do detalhe: total/pago/saldo + lista de pagamentos da OS,
+/// com ações de registrar pagamento, gerar parcelas e marcar como pago.
+class _FinanceSection extends ConsumerWidget {
+  final ServiceOrder order;
+  const _FinanceSection({required this.order});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final paymentsAsync = ref.watch(orderPaymentsProvider(order.id));
+    final currencyFormat = NumberFormat.simpleCurrency(locale: 'pt_BR');
+
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: paymentsAsync.when(
+          loading: () => const Center(
+            child: Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator()),
+          ),
+          error: (err, _) => Text('Erro ao carregar pagamentos: $err',
+              style: const TextStyle(color: Colors.red)),
+          data: (payments) {
+            final pago = payments
+                .where((p) => p.isPaid)
+                .fold<double>(0, (s, p) => s + p.amount);
+            final saldo = order.totalValue - pago;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _financeStat('Total', currencyFormat.format(order.totalValue), AppColors.primary),
+                    _financeStat('Pago', currencyFormat.format(pago), const Color(0xFF1A7A5E)),
+                    _financeStat('Saldo', currencyFormat.format(saldo),
+                        saldo > 0 ? const Color(0xFFC0392B) : const Color(0xFF1A7A5E)),
+                  ],
+                ),
+                const Divider(height: 24),
+                if (payments.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text('Nenhum pagamento registrado.',
+                        style: TextStyle(color: Colors.grey)),
+                  )
+                else
+                  ...payments.map((p) => _PaymentRow(payment: p)),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(LucideIcons.plus, size: 16),
+                        label: const Text('Registrar pagamento'),
+                        onPressed: () => showDialog<void>(
+                          context: context,
+                          builder: (_) => _RegisterPaymentDialog(order: order),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(LucideIcons.layers, size: 16),
+                        label: const Text('Gerar parcelas'),
+                        onPressed: () => showDialog<void>(
+                          context: context,
+                          builder: (_) => _InstallmentsDialog(order: order),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _financeStat(String label, String value, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color)),
+      ],
+    );
+  }
+}
+
+class _PaymentRow extends ConsumerWidget {
+  final Payment payment;
+  const _PaymentRow({required this.payment});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currencyFormat = NumberFormat.simpleCurrency(locale: 'pt_BR');
+    final overdue = payment.isOverdue;
+    final color = payment.isPaid
+        ? const Color(0xFF1A7A5E)
+        : (overdue ? const Color(0xFFC0392B) : AppColors.primary);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(
+            payment.isPaid ? LucideIcons.checkCircle : (overdue ? LucideIcons.alertTriangle : LucideIcons.clock),
+            size: 16, color: color,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${PaymentConstants.methodLabel(payment.method)} · ${PaymentConstants.statusLabel(payment.status)}',
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  payment.notes ??
+                      (payment.dueDate != null ? 'Venc. ${AppDateUtils.formatDate(payment.dueDate)}' : '—'),
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+          Text(currencyFormat.format(payment.amount),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+          if (!payment.isPaid)
+            TextButton(
+              onPressed: () => ref.read(paymentProvider.notifier).markPaid(payment),
+              child: const Text('Marcar pago'),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RegisterPaymentDialog extends ConsumerStatefulWidget {
+  final ServiceOrder order;
+  const _RegisterPaymentDialog({required this.order});
+
+  @override
+  ConsumerState<_RegisterPaymentDialog> createState() => _RegisterPaymentDialogState();
+}
+
+class _RegisterPaymentDialogState extends ConsumerState<_RegisterPaymentDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _amountController = TextEditingController();
+  final _notesController = TextEditingController();
+  String _method = PaymentConstants.dinheiro;
+  DateTime? _dueDate;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    final amount = double.tryParse(_amountController.text.replaceAll(',', '.')) ?? 0;
+    try {
+      await ref.read(paymentProvider.notifier).create(
+            Payment(
+              id: '',
+              orderId: widget.order.id,
+              amount: amount,
+              method: _method,
+              status: PaymentConstants.pendente,
+              dueDate: _dueDate,
+              notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+              createdAt: DateTime.now(),
+            ),
+          );
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = 'Erro ao registrar: $e');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Registrar pagamento'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_error != null) ...[
+              Text(_error!, style: const TextStyle(color: AppColors.error)),
+              const SizedBox(height: 12),
+            ],
+            TextFormField(
+              controller: _amountController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Valor'),
+              validator: (v) {
+                final parsed = double.tryParse((v ?? '').replaceAll(',', '.'));
+                if (parsed == null || parsed <= 0) return 'Informe um valor maior que zero';
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _method,
+              decoration: const InputDecoration(labelText: 'Método'),
+              items: PaymentConstants.methods
+                  .map((m) => DropdownMenuItem(value: m, child: Text(PaymentConstants.methodLabel(m))))
+                  .toList(),
+              onChanged: (v) => setState(() => _method = v ?? PaymentConstants.dinheiro),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(_dueDate == null
+                      ? 'Sem vencimento'
+                      : 'Vencimento: ${AppDateUtils.formatDate(_dueDate)}'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _dueDate ?? DateTime.now(),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked != null) setState(() => _dueDate = picked);
+                  },
+                  child: const Text('Definir data'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _notesController,
+              decoration: const InputDecoration(labelText: 'Notas (opcional)'),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Registrar'),
+        ),
+      ],
+    );
+  }
+}
+
+class _InstallmentsDialog extends ConsumerStatefulWidget {
+  final ServiceOrder order;
+  const _InstallmentsDialog({required this.order});
+
+  @override
+  ConsumerState<_InstallmentsDialog> createState() => _InstallmentsDialogState();
+}
+
+class _InstallmentsDialogState extends ConsumerState<_InstallmentsDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _countController = TextEditingController(text: '2');
+  String _method = PaymentConstants.dinheiro;
+  DateTime _firstDueDate = DateTime.now();
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _countController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    final count = int.tryParse(_countController.text) ?? 0;
+    try {
+      await ref.read(paymentProvider.notifier).createInstallments(
+            orderId: widget.order.id,
+            totalAmount: widget.order.totalValue,
+            count: count,
+            firstDueDate: _firstDueDate,
+            method: _method,
+          );
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = 'Erro ao gerar parcelas: $e');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currencyFormat = NumberFormat.simpleCurrency(locale: 'pt_BR');
+    return AlertDialog(
+      title: const Text('Gerar parcelas'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_error != null) ...[
+              Text(_error!, style: const TextStyle(color: AppColors.error)),
+              const SizedBox(height: 12),
+            ],
+            Text('Total da OS: ${currencyFormat.format(widget.order.totalValue)}',
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _countController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Número de parcelas'),
+              validator: (v) {
+                final parsed = int.tryParse(v ?? '');
+                if (parsed == null || parsed < 1) return 'Informe ao menos 1 parcela';
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _method,
+              decoration: const InputDecoration(labelText: 'Método'),
+              items: PaymentConstants.methods
+                  .map((m) => DropdownMenuItem(value: m, child: Text(PaymentConstants.methodLabel(m))))
+                  .toList(),
+              onChanged: (v) => setState(() => _method = v ?? PaymentConstants.dinheiro),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(child: Text('1º vencimento: ${AppDateUtils.formatDate(_firstDueDate)}')),
+                TextButton(
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _firstDueDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked != null) setState(() => _firstDueDate = picked);
+                  },
+                  child: const Text('Definir data'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Gerar'),
+        ),
+      ],
     );
   }
 }

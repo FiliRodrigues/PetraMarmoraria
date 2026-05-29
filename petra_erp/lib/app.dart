@@ -134,6 +134,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const InventoryScreen(),
           ),
           GoRoute(
+            path: '/financeiro',
+            builder: (context, state) => const FinanceScreen(),
+          ),
+          GoRoute(
             path: '/reports',
             builder: (context, state) => const ReportsScreen(),
           ),

@@ -73,7 +73,25 @@ Implementação de 8 features + 2 pré-requisitos para o petra_erp (Flutter + Su
 
 ---
 
-## O que FALTA fazer
+## CONCLUÍDO (2026-05-29)
+
+Tudo que faltava foi implementado nesta sessão:
+- ✅ Migration `006_finance_stock.sql` criada e **aplicada no banco** via Supabase MCP
+  (tabela `payments`, `stock_movements`, coluna `created_by` em service_orders,
+  `stock_quantity`/`min_stock` em products, função `register_stock_movement` + RLS).
+- ✅ Tela Financeira `lib/screens/finance/finance_screen.dart` (KPIs, filtro
+  pendente/pago/todos, lista com destaque de vencidos, toque abre a OS).
+- ✅ Registrada: export em `screens.dart`, rota `/financeiro` em `app.dart`, seção
+  FINANCEIRO no `app_drawer.dart`.
+- ✅ Seção Financeiro no `os_detail_screen.dart` (total/pago/saldo, lista de pagamentos,
+  dialogs de registrar pagamento, gerar parcelas e marcar pago).
+- ✅ `flutter analyze` limpo nos arquivos tocados; build Windows debug OK.
+
+> O detalhamento abaixo era o pendente original — mantido como referência histórica.
+
+---
+
+## ~~O que FALTA fazer~~ (referência — já feito)
 
 ### 1. Tela Financeira (`lib/screens/finance/finance_screen.dart`)
 Criar a tela com:

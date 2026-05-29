@@ -71,6 +71,8 @@ class _DrawerBody extends StatelessWidget {
               _item(ctx, LucideIcons.package,         'Produtos',          '/products',  location),
               _sectionLabel('ESTOQUE'),
               _item(ctx, LucideIcons.boxes,           'Estoque',           '/estoque',   location),
+              _sectionLabel('FINANCEIRO'),
+              _item(ctx, LucideIcons.wallet,          'Financeiro',        '/financeiro', location),
               _sectionLabel('ANÁLISE'),
               _item(ctx, LucideIcons.barChart2,       'Relatórios',        '/reports',   location),
               _item(ctx, LucideIcons.calendarDays,    'Agenda',            '/agenda',    location),
