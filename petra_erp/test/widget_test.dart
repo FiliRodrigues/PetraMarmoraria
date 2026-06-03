@@ -10,6 +10,7 @@ import 'package:petra_erp/services/customer_service.dart';
 import 'package:petra_erp/services/product_service.dart';
 import 'package:petra_erp/services/profile_service.dart';
 import 'package:petra_erp/services/service_order_service.dart';
+import 'package:petra_erp/services/company_service.dart';
 import 'package:petra_erp/models/models.dart';
 
 class FakeAuthService implements AuthService {
@@ -85,6 +86,34 @@ class FakeProfileService implements ProfileService {
   Future<void> setProfileActiveStatus(String id, bool active) async {}
   @override
   Future<Profile> updateProfile(Profile profile) async => profile;
+  @override
+  Future<void> createEmployee({
+    required String email,
+    required String password,
+    required String name,
+    required List<String> roles,
+    String? phone,
+    String loginMode = 'email',
+  }) async {}
+
+  @override
+  Future<void> unblockWorker(String id) async {}
+
+  @override
+  Future<void> resetWorkerPin(String id) async {}
+
+  @override
+  Future<void> resetEmployeePassword({
+    required String userId,
+    required String password,
+  }) async {}
+}
+
+class FakeCompanyService implements CompanyService {
+  @override
+  Future<CompanyInfo> getCompanyInfo() async => const CompanyInfo(name: 'Petra Test');
+  @override
+  Future<CompanyInfo> updateCompanyInfo(CompanyInfo info) async => info;
 }
 
 class FakeServiceOrderService implements ServiceOrderService {
@@ -157,6 +186,7 @@ void main() {
           productServiceProvider.overrideWithValue(FakeProductService()),
           profileServiceProvider.overrideWithValue(FakeProfileService()),
           serviceOrderServiceProvider.overrideWithValue(FakeServiceOrderService()),
+          companyServiceProvider.overrideWithValue(FakeCompanyService()),
         ],
         child: const PetraApp(),
       ),

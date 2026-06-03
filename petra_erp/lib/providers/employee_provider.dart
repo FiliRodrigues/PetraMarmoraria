@@ -36,6 +36,51 @@ class EmployeeNotifier extends StateNotifier<AsyncValue<List<Profile>>> {
       rethrow;
     }
   }
+
+  Future<void> createEmployee({
+    required String email,
+    required String password,
+    required String name,
+    required List<String> roles,
+    String? phone,
+    String loginMode = 'email',
+  }) async {
+    try {
+      await _service.createEmployee(
+        email: email,
+        password: password,
+        name: name,
+        roles: roles,
+        phone: phone,
+        loginMode: loginMode,
+      );
+      await loadEmployees();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> unblockWorker(String id) async {
+    try {
+      await _service.unblockWorker(id);
+      await loadEmployees();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> resetWorkerPin(String id) async {
+    try {
+      await _service.resetWorkerPin(id);
+      await loadEmployees();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> resetEmployeePassword(String userId, String password) async {
+    await _service.resetEmployeePassword(userId: userId, password: password);
+  }
 }
 
 final employeeProvider = StateNotifierProvider<EmployeeNotifier, AsyncValue<List<Profile>>>((ref) {
