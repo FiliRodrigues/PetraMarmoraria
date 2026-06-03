@@ -1,11 +1,11 @@
 {
-    "name": "petra_erp",
-    "short_name": "petra_erp",
+    "name": "Petra ERP",
+    "short_name": "Petra",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0B0F19",
+    "theme_color": "#0B0F19",
+    "description": "Petra ERP - Sistema de Gestão para Marmoraria",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
