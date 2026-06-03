@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/utils/error_messages.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +7,7 @@ import '../../core/constants/os_status.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/responsive.dart';
 import '../../models/service_order.dart';
 import '../../providers/os_provider.dart';
 import '../../widgets/widgets.dart';
@@ -79,7 +81,7 @@ class _OSListScreenState extends ConsumerState<OSListScreen> {
       body: ordersAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) =>
-            Center(child: Text('Erro ao carregar ordens: $err')),
+            Center(child: Text(friendlyError(err))),
         data: (orders) {
           final all = [...orders]
             ..sort((a, b) => a.displayNumber.compareTo(b.displayNumber));
@@ -158,6 +160,15 @@ class _OrdersTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // No celular a tabela de 7 colunas não cabe — usa cards (igual protótipo).
+    if (context.isMobile) {
+      return ListView.builder(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
+        itemCount: orders.length,
+        itemBuilder: (_, i) => OrderCard(order: orders[i]),
+      );
+    }
+
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -187,10 +198,10 @@ class _TableHeaderRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     TextStyle h() => AppTheme.jakarta(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w800,
           color: AppColors.textMuted,
-        );
+        ).copyWith(letterSpacing: 0.5);
     Widget cell(String label, int flex, {Alignment align = Alignment.centerLeft}) =>
         Expanded(
           flex: flex,
@@ -201,7 +212,10 @@ class _TableHeaderRow extends StatelessWidget {
         );
 
     return Container(
-      color: AppColors.surfaceElevated,
+      decoration: const BoxDecoration(
+        color: AppColors.neutral50,
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
@@ -233,7 +247,7 @@ class _OrderRowState extends State<_OrderRow> {
   @override
   Widget build(BuildContext context) {
     final o = widget.order;
-    final baseBg = widget.even ? AppColors.surface : AppColors.background;
+    final baseBg = widget.even ? AppColors.surface : AppColors.neutral50;
     final bg = _hover ? AppColors.accent.withValues(alpha: 0.06) : baseBg;
 
     return MouseRegion(
@@ -324,13 +338,24 @@ class _DeadlineCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (order.status == OSStatus.entrega) {
+    if (order.status == OSStatus.entregue) {
       return Text(
         '✓ Entregue',
         style: AppTheme.jakarta(
           fontSize: 12,
           fontWeight: FontWeight.w700,
           color: AppColors.success,
+        ),
+      );
+    }
+
+    if (order.status == OSStatus.entrega) {
+      return Text(
+        'Em entrega',
+        style: AppTheme.jakarta(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: AppColors.secondary,
         ),
       );
     }
@@ -370,10 +395,10 @@ class _StaleBadge extends StatelessWidget {
     final label = days <= 0 ? 'Hoje' : '${days}d';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
       ),
       child: Text(
         label,
@@ -411,32 +436,39 @@ class _StatusTabs extends StatelessWidget {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          _Tab(
-            label: 'Todas',
-            count: all.length,
-            color: AppColors.accent,
-            active: selected == null,
-            onTap: () => onSelect(null),
-          ),
-          for (final s in tabs)
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: AppColors.neutral100,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        ),
+        child: Row(
+          children: [
             _Tab(
-              label: OSStatus.labels[s] ?? s,
-              count: all.where((o) => o.status == s).length,
-              color: AppColors.statusColors(s).color,
-              active: selected == s,
-              onTap: () => onSelect(s),
+              label: 'Todas',
+              count: all.length,
+              color: AppColors.accent,
+              active: selected == null,
+              onTap: () => onSelect(null),
             ),
-          if (archivedCount > 0)
-            _Tab(
-              label: 'Arquivadas',
-              count: archivedCount,
-              color: AppColors.textMuted,
-              active: selected == archivedFilter,
-              onTap: () => onSelect(archivedFilter),
-            ),
-        ],
+            for (final s in tabs)
+              _Tab(
+                label: OSStatus.labels[s] ?? s,
+                count: all.where((o) => o.status == s).length,
+                color: AppColors.statusColors(s).color,
+                active: selected == s,
+                onTap: () => onSelect(s),
+              ),
+            if (archivedCount > 0)
+              _Tab(
+                label: 'Arquivadas',
+                count: archivedCount,
+                color: AppColors.textMuted,
+                active: selected == archivedFilter,
+                onTap: () => onSelect(archivedFilter),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -459,18 +491,17 @@ class _Tab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(right: 18),
-        padding: const EdgeInsets.symmetric(vertical: 12),
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        margin: const EdgeInsets.only(right: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: active ? color : Colors.transparent,
-              width: 2.5,
-            ),
-          ),
+          color: active ? AppColors.surface : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+          boxShadow: active ? AppTheme.shadowSoft : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -479,25 +510,23 @@ class _Tab extends StatelessWidget {
               label,
               style: AppTheme.jakarta(
                 fontSize: 12.5,
-                fontWeight: active ? FontWeight.w700 : FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: active ? color : AppColors.textMuted,
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 7),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
               decoration: BoxDecoration(
-                color: active
-                    ? color.withValues(alpha: 0.14)
-                    : AppColors.surfaceElevated,
-                borderRadius: BorderRadius.circular(20),
+                color: active ? color : AppColors.neutral200,
+                borderRadius: BorderRadius.circular(AppTheme.radiusFull),
               ),
               child: Text(
                 '$count',
                 style: AppTheme.numeric(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w800,
-                  color: active ? color : AppColors.textMuted,
+                  color: active ? Colors.white : AppColors.textSecondary,
                 ),
               ),
             ),
@@ -542,7 +571,7 @@ class _Header extends StatelessWidget {
                 title,
                 style: AppTheme.syne(
                   fontSize: 17,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   color: AppColors.primary,
                 ),
               ),
@@ -625,18 +654,31 @@ class SearchField extends StatelessWidget {
           filled: true,
           fillColor: AppColors.surface,
           prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.textMuted),
+          suffixIcon: Container(
+            margin: const EdgeInsets.only(right: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.neutral100,
+              borderRadius: BorderRadius.circular(AppTheme.radiusXs),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Text('/',
+              style: AppTheme.jakarta(fontSize: 11, fontWeight: FontWeight.w700,
+                color: AppColors.textMuted)),
+          ),
+          suffixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
           contentPadding: const EdgeInsets.symmetric(vertical: 10),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             borderSide: const BorderSide(color: AppColors.border),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             borderSide: const BorderSide(color: AppColors.border),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-            borderSide: const BorderSide(color: AppColors.borderFocus, width: 1.5),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
           ),
         ),
       ),
@@ -661,10 +703,11 @@ class NewButton extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.accent,
           foregroundColor: AppColors.white,
-          elevation: 0,
+          elevation: 1,
+          shadowColor: AppColors.shadowMedium,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           ),
           textStyle: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w700),
         ),

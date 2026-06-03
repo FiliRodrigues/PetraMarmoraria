@@ -15,6 +15,10 @@ class Profile {
   final bool active;
   final DateTime createdAt;
 
+  final String loginMode;
+  final bool blocked;
+  final bool pinSet;
+
   const Profile({
     required this.id,
     required this.email,
@@ -24,6 +28,9 @@ class Profile {
     this.avatarUrl,
     this.active = true,
     required this.createdAt,
+    this.loginMode = 'email',
+    this.blocked = false,
+    this.pinSet = false,
   });
 
   /// Convenience accessor used throughout the UI where a single label is
@@ -39,6 +46,8 @@ class Profile {
 
   bool get isAdmin => hasRole('admin');
 
+  bool get isWorker => loginMode == 'pin';
+
   Profile copyWith({
     String? id,
     String? email,
@@ -48,6 +57,9 @@ class Profile {
     String? avatarUrl,
     bool? active,
     DateTime? createdAt,
+    String? loginMode,
+    bool? blocked,
+    bool? pinSet,
   }) {
     return Profile(
       id: id ?? this.id,
@@ -58,6 +70,9 @@ class Profile {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       active: active ?? this.active,
       createdAt: createdAt ?? this.createdAt,
+      loginMode: loginMode ?? this.loginMode,
+      blocked: blocked ?? this.blocked,
+      pinSet: pinSet ?? this.pinSet,
     );
   }
 
@@ -71,6 +86,9 @@ class Profile {
       'avatar_url': avatarUrl,
       'active': active,
       'created_at': createdAt.toIso8601String(),
+      'login_mode': loginMode,
+      'blocked': blocked,
+      'pin_set': pinSet,
     };
   }
 
@@ -86,6 +104,9 @@ class Profile {
       createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'] as String)
           : DateTime.now(),
+      loginMode: map['login_mode'] as String? ?? 'email',
+      blocked: map['blocked'] as bool? ?? false,
+      pinSet: map['pin_set'] as bool? ?? false,
     );
   }
 
@@ -111,7 +132,10 @@ class Profile {
         other.phone == phone &&
         other.avatarUrl == avatarUrl &&
         other.active == active &&
-        other.createdAt == createdAt;
+        other.createdAt == createdAt &&
+        other.loginMode == loginMode &&
+        other.blocked == blocked &&
+        other.pinSet == pinSet;
   }
 
   @override
@@ -125,11 +149,14 @@ class Profile {
       avatarUrl,
       active,
       createdAt,
+      loginMode,
+      blocked,
+      pinSet,
     );
   }
 
   @override
   String toString() {
-    return 'Profile(id: $id, email: $email, name: $name, roles: $roles, active: $active)';
+    return 'Profile(id: $id, email: $email, name: $name, roles: $roles, active: $active, loginMode: $loginMode)';
   }
 }

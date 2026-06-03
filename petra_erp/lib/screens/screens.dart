@@ -1,6 +1,11 @@
+export 'auth/role_gate_screen.dart';
 export 'auth/login_screen.dart';
 export 'auth/forgot_password_screen.dart';
+export 'auth/worker_select_screen.dart';
+export 'auth/worker_pin_screen.dart';
+export 'auth/splash_screen.dart';
 export 'home/home_screen.dart';
+export 'kanban/kanban_screen.dart';
 export 'customers/customer_list_screen.dart';
 export 'customers/customer_form_screen.dart';
 export 'customers/customer_detail_screen.dart';
@@ -17,3 +22,6 @@ export 'finance/finance_screen.dart';
 export 'reports/reports_screen.dart';
 export 'agenda/agenda_screen.dart';
 export 'profile/profile_screen.dart';
+export 'settings/settings_screen.dart';
+export 'worker/worker_home_screen.dart';
+export 'worker/change_pin_screen.dart';

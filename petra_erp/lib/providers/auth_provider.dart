@@ -72,6 +72,11 @@ final authProvider = StateNotifierProvider<AuthNotifier, AsyncValue<User?>>((ref
   return AuthNotifier(authService);
 });
 
+// Atalho de login por biometria (por aparelho)
+final biometricAuthServiceProvider = Provider<BiometricAuthService>((ref) {
+  return BiometricAuthService();
+});
+
 // Provides the Profile model for the currently logged-in user
 final currentProfileProvider = FutureProvider<Profile?>((ref) async {
   final userAsync = ref.watch(authProvider);

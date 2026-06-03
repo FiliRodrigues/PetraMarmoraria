@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/utils/error_messages.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
@@ -87,7 +88,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       ),
       body: productsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Erro ao carregar catálogo: $err')),
+        error: (err, _) => Center(child: Text(friendlyError(err))),
         data: (products) {
           final query = _searchText.trim().toLowerCase();
           final filtered = products.where((p) {
@@ -169,19 +170,11 @@ class _ProductCardState extends State<_ProductCard> {
           duration: const Duration(milliseconds: 120),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
             border: Border.all(
               color: _hover ? AppColors.accent : AppColors.border,
             ),
-            boxShadow: _hover
-                ? const [
-                    BoxShadow(
-                      color: AppColors.shadowElevated,
-                      blurRadius: 14,
-                      offset: Offset(0, 4),
-                    ),
-                  ]
-                : null,
+            boxShadow: _hover ? AppTheme.shadowMedium : AppTheme.shadowSoft,
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
@@ -270,10 +263,10 @@ class _Tag extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
       ),
       child: Text(
         label,
@@ -342,13 +335,13 @@ class _CatChip extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
           decoration: BoxDecoration(
             color: active ? color.withValues(alpha: 0.12) : AppColors.surface,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(AppTheme.radiusFull),
             border: Border.all(color: active ? color : AppColors.border),
           ),
           child: Text(
@@ -391,7 +384,7 @@ class _ProductHeader extends StatelessWidget {
                 'Produtos',
                 style: AppTheme.syne(
                   fontSize: 17,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   color: AppColors.primary,
                 ),
               ),

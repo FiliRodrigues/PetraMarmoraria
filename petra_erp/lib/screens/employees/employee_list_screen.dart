@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../core/utils/error_messages.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../../core/constants/roles.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
@@ -9,32 +12,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/employee_provider.dart';
 import '../../widgets/widgets.dart';
 import '../service_orders/os_list_screen.dart' show SearchField, NewButton;
-
-/// Cor associada a cada cargo (papel) de funcionário.
-Color _roleColor(String role) {
-  switch (role.toLowerCase()) {
-    case 'admin':
-      return const Color(0xFF0A3D62);
-    case 'vendedor':
-      return const Color(0xFFC0802A);
-    case 'cortador':
-      return const Color(0xFF6058D0);
-    case 'montador':
-      return const Color(0xFF0D8B7E);
-    case 'entregador':
-      return const Color(0xFF1A7A5E);
-    default:
-      return AppColors.textMuted;
-  }
-}
-
-const Map<String, String> _roleLabels = {
-  'admin': 'Admin',
-  'vendedor': 'Vendedor',
-  'cortador': 'Cortador',
-  'montador': 'Montador',
-  'entregador': 'Entregador',
-};
 
 /// Lista de funcionários em grid de cards, com filtro por cargo.
 class EmployeeListScreen extends ConsumerStatefulWidget {
@@ -50,13 +27,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
   String _searchText = '';
   String? _roleFilter; // null = Todos
 
-  static const List<String> _roles = [
-    'admin',
-    'vendedor',
-    'cortador',
-    'montador',
-    'entregador',
-  ];
+  static const List<String> _roles = AppRoles.all;
 
   @override
   void initState() {
@@ -80,7 +51,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (err, _) =>
-          Scaffold(body: Center(child: Text('Erro ao validar acesso: $err'))),
+          Scaffold(body: Center(child: Text(friendlyError(err)))),
       data: (profile) {
         if (profile == null || !profile.isAdmin) {
           return const Scaffold(
@@ -110,7 +81,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
           body: employeesAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (err, _) => Center(
-                child: Text('Erro ao carregar funcionários: $err')),
+                child: Text(friendlyError(err))),
             data: (employees) {
               final query = _searchText.trim().toLowerCase();
               final filtered = employees.where((e) {
@@ -181,22 +152,11 @@ class _EmployeeCard extends StatefulWidget {
 class _EmployeeCardState extends State<_EmployeeCard> {
   bool _hover = false;
 
-  String get _initials {
-    final parts = widget.profile.name
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((p) => p.isNotEmpty)
-        .toList();
-    if (parts.isEmpty) return '?';
-    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
-  }
-
   @override
   Widget build(BuildContext context) {
     final e = widget.profile;
     final role = e.role;
-    final color = _roleColor(role);
+    final color = AppRoles.roleColor(role);
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -209,19 +169,11 @@ class _EmployeeCardState extends State<_EmployeeCard> {
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
             border: Border.all(
               color: _hover ? AppColors.accent : AppColors.border,
             ),
-            boxShadow: _hover
-                ? const [
-                    BoxShadow(
-                      color: AppColors.shadowElevated,
-                      blurRadius: 14,
-                      offset: Offset(0, 4),
-                    ),
-                  ]
-                : null,
+            boxShadow: _hover ? AppTheme.shadowMedium : AppTheme.shadowSoft,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,7 +181,7 @@ class _EmployeeCardState extends State<_EmployeeCard> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _RoleAvatar(initials: _initials, color: color),
+                  _RoleAvatar(initials: AppRoles.initials(e.name), color: color),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -254,7 +206,7 @@ class _EmployeeCardState extends State<_EmployeeCard> {
                 ],
               ),
               const SizedBox(height: 14),
-              _EmpInfoLine(icon: Icons.email_outlined, text: e.email),
+              _EmpInfoLine(icon: Icons.email_outlined, text: e.isWorker ? 'Acesso por PIN' : e.email),
               if (e.phone != null && e.phone!.isNotEmpty)
                 _EmpInfoLine(
                   icon: Icons.phone,
@@ -265,24 +217,36 @@ class _EmployeeCardState extends State<_EmployeeCard> {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  Container(
-                    width: 7,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      color: e.active ? AppColors.success : AppColors.error,
-                      shape: BoxShape.circle,
+                  if (e.blocked) ...[
+                    Icon(LucideIcons.lock, size: 11, color: AppColors.error),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Bloqueado',
+                      style: AppTheme.jakarta(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.error,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    e.active ? 'Ativo' : 'Inativo',
-                    style: AppTheme.jakarta(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color:
-                          e.active ? AppColors.success : AppColors.error,
+                  ] else ...[
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: e.active ? AppColors.success : AppColors.error,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 6),
+                    Text(
+                      e.active ? 'Ativo' : 'Inativo',
+                      style: AppTheme.jakarta(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: e.active ? AppColors.success : AppColors.error,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ],
@@ -300,12 +264,12 @@ class _RoleBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = (_roleLabels[role.toLowerCase()] ?? role).toUpperCase();
+    final label = AppRoles.roleLabel(role).toUpperCase();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(5),
+        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
       ),
       child: Text(
         label,
@@ -331,7 +295,7 @@ class _RoleAvatar extends StatelessWidget {
       height: 44,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -409,8 +373,8 @@ class _RoleChips extends StatelessWidget {
           ),
           for (final r in roles)
             _Chip(
-              label: _roleLabels[r] ?? r,
-              color: _roleColor(r),
+              label: AppRoles.roleLabel(r),
+              color: AppRoles.roleColor(r),
               active: selected == r,
               onTap: () => onSelect(r),
             ),
@@ -444,7 +408,7 @@ class _Chip extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
           decoration: BoxDecoration(
             color: active ? color.withValues(alpha: 0.12) : AppColors.surface,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(AppTheme.radiusFull),
             border: Border.all(
               color: active ? color : AppColors.border,
             ),
@@ -489,7 +453,7 @@ class _EmployeeHeader extends StatelessWidget {
                 'Funcionários',
                 style: AppTheme.syne(
                   fontSize: 17,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   color: AppColors.primary,
                 ),
               ),

@@ -61,9 +61,18 @@ class AppColors {
   static const borderWarm        = Color(0xFFE8E2D9);
   static const borderFocus       = Color(0xFF0A3D62);
 
+  // ── Neutros (escala para superfícies/zebra/chips) ────────────────────────
+  static const neutral50         = Color(0xFFF8FAFC);
+  static const neutral100        = Color(0xFFF1F5F9);
+  static const neutral200        = Color(0xFFE7EDF3);
+  static const neutral300        = Color(0xFFD8E3EC);
+
   // ── Sombras ───────────────────────────────────────────────────────────────
   static const shadowCard        = Color(0x0A000000);
   static const shadowElevated     = Color(0x16000000);
+  // Sombras em camadas (tom navy frio, estilo reui)
+  static const shadowSoft        = Color(0x0F101828);
+  static const shadowMedium      = Color(0x1A101828);
 
   // ── Aliases legados (mantidos p/ telas ainda não migradas) ───────────────
   static const white            = Color(0xFFFFFFFF);
@@ -89,7 +98,6 @@ class AppColors {
     return switch (status) {
       'orcamento'          => (color: orcamento,   bg: orcamentoBg),
       'aprovado'           => (color: aprovado,    bg: aprovadoBg),
-      'recebido'           => (color: aprovado,    bg: aprovadoBg),
       'esperando_material' => (color: espMaterial, bg: espMaterialBg),
       'corte'              => (color: corte,       bg: corteBg),
       'montagem'           => (color: montagem,    bg: montagemBg),

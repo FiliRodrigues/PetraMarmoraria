@@ -5,11 +5,17 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/constants/os_status.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/error_messages.dart';
+import '../../core/utils/responsive.dart';
 import '../../models/models.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/os_provider.dart';
 import '../../providers/stock_provider.dart';
 import '../../widgets/widgets.dart';
+import '../kanban/kanban_screen.dart';
 
+/// Tela inicial. No celular/tablet mostra um dashboard de resumo; no desktop
+/// (tela larga) mostra o quadro Kanban, que aproveita melhor a largura.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -18,293 +24,281 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  final _search = TextEditingController();
-  String _searchText = '';
-  bool _onlyDelayed = false;
-  bool _onlyHoje    = false;
-  String? _filterStatus;
+  bool _checkedPending = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _search.addListener(() => setState(() => _searchText = _search.text));
+  void _maybeShowPendingActions() {
+    if (_checkedPending) return;
+    final isAdmin = ref.read(currentProfileProvider).value?.isAdmin ?? false;
+    if (!isAdmin) return;
+    _checkedPending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final actions = await ref.read(pendingAdminActionsProvider.future);
+      if (!mounted || actions.isEmpty) return;
+      await showPendingAdminActionsDialog(context, ref, actions);
+    });
   }
 
   @override
-  void dispose() { _search.dispose(); super.dispose(); }
-
-  void _clear() => setState(() {
-    _search.clear(); _onlyDelayed = false; _onlyHoje = false; _filterStatus = null;
-  });
-
-  @override
   Widget build(BuildContext context) {
+    _maybeShowPendingActions();
+
+    if (context.isDesktop) return const KanbanScreen();
+
     final ordersAsync = ref.watch(osProvider);
+    final currentProfile = ref.watch(currentProfileProvider).value;
+    final isAdmin = currentProfile?.isAdmin ?? false;
+    final currentUserId = ref.watch(authProvider).value?.id;
+
     return Scaffold(
       body: ordersAsync.when(
         loading: () => ListView.builder(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: 6,
-          itemBuilder: (_, __) => const SkeletonOSCard(),
+          itemCount: 5,
+          itemBuilder: (_, _) => const SkeletonOSCard(),
         ),
         error: (err, _) => _ErrorView(err: err, onRetry: () => ref.invalidate(osProvider)),
-        data: (orders) => _buildContent(context, orders),
+        data: (orders) => _Dashboard(
+          allOrders: orders,
+          isAdmin: isAdmin,
+          currentUserId: currentUserId,
+          lowStockCount: ref.watch(lowStockProductsProvider).length,
+          onRefresh: () => ref.invalidate(osProvider),
+        ),
       ),
     );
   }
-
-  Widget _buildContent(BuildContext context, List<ServiceOrder> allOrders) {
-    // OS entregues há 7+ dias saem do Kanban (permanecem no banco/relatórios).
-    final orders   = allOrders.where((o) => !o.isArchived).toList();
-    final today    = DateTime.now();
-    final todayD   = DateTime(today.year, today.month, today.day);
-
-    final total    = orders.length;
-    final orcCount = orders.where((o) => o.status == OSStatus.orcamento).length;
-    final hojeCount = orders.where((o) {
-      if (o.status == OSStatus.entrega || o.scheduledDate == null) return false;
-      final d = o.scheduledDate!;
-      return d.year == today.year && d.month == today.month && d.day == today.day;
-    }).length;
-    final vencidasCount = orders.where((o) {
-      if (o.status == OSStatus.entrega || o.scheduledDate == null) return false;
-      return DateTime(o.scheduledDate!.year, o.scheduledDate!.month, o.scheduledDate!.day)
-          .isBefore(todayD);
-    }).length;
-
-    final lowStockCount = ref.watch(lowStockProductsProvider).length;
-
-    // Fura-fila
-    String? queueAlert;
-    final sorted = List<ServiceOrder>.from(orders)
-      ..sort((a, b) => a.queuePosition.compareTo(b.queuePosition));
-    outer:
-    for (var i = 0; i < sorted.length; i++) {
-      final a = sorted[i];
-      if (a.status == OSStatus.orcamento || a.status == OSStatus.entrega) continue;
-      for (var j = i + 1; j < sorted.length; j++) {
-        final b = sorted[j];
-        if (b.status == OSStatus.orcamento || b.status == OSStatus.entrega) continue;
-        if (OSStatus.indexOf(b.status) > OSStatus.indexOf(a.status)) {
-          queueAlert = '${b.formattedNumber} furou a fila (${b.statusLabel})';
-          break outer;
-        }
-      }
-    }
-
-    // Filtros
-    var filtered = orders.where((o) {
-      if (_searchText.isNotEmpty) {
-        final q = _searchText.toLowerCase();
-        if (!o.formattedNumber.toLowerCase().contains(q) &&
-            !(o.customerName ?? '').toLowerCase().contains(q) &&
-            !(o.material ?? '').toLowerCase().contains(q)) return false;
-      }
-      if (_filterStatus != null && o.status != _filterStatus) return false;
-      if (_onlyDelayed) {
-        if (o.status == OSStatus.entrega || o.scheduledDate == null) return false;
-        if (!DateTime(o.scheduledDate!.year, o.scheduledDate!.month, o.scheduledDate!.day)
-            .isBefore(todayD)) return false;
-      }
-      if (_onlyHoje) {
-        if (o.status == OSStatus.entrega || o.scheduledDate == null) return false;
-        final d = o.scheduledDate!;
-        if (!(d.year == today.year && d.month == today.month && d.day == today.day)) return false;
-      }
-      return true;
-    }).toList();
-
-    final hasFilter = _onlyDelayed || _onlyHoje || _filterStatus != null || _searchText.isNotEmpty;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // ── Header ──────────────────────────────────────────────────────────
-        Container(
-          color: AppColors.surface,
-          padding: const EdgeInsets.fromLTRB(18, 11, 18, 11),
-          child: Row(children: [
-            Text('Painel Kanban',
-              style: AppTheme.syne(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primary)),
-            const SizedBox(width: 20),
-
-            // KPI chips (rolam horizontalmente em telas estreitas)
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(children: [
-                  _Chip(icon: LucideIcons.clipboardList, label: 'Total',        value: '$total',        color: AppColors.primary),
-                  const SizedBox(width: 6),
-                  _Chip(icon: LucideIcons.fileText,      label: 'Orçamentos',   value: '$orcCount',     color: AppColors.orcamento,
-                    active: _filterStatus == OSStatus.orcamento,
-                    onTap: () => setState(() {
-                      _filterStatus = _filterStatus == OSStatus.orcamento ? null : OSStatus.orcamento;
-                      _onlyDelayed = _onlyHoje = false; _search.clear();
-                    })),
-                  const SizedBox(width: 6),
-                  _Chip(icon: LucideIcons.calendarCheck, label: 'Entrega hoje', value: '$hojeCount',    color: AppColors.staleOk,
-                    active: _onlyHoje,
-                    onTap: () => setState(() { _onlyHoje = !_onlyHoje; _onlyDelayed = false; _filterStatus = null; })),
-                  const SizedBox(width: 6),
-                  _Chip(icon: LucideIcons.calendarX,     label: 'Vencidas',     value: '$vencidasCount',color: AppColors.staleCrit,
-                    active: _onlyDelayed,
-                    onTap: () => setState(() { _onlyDelayed = !_onlyDelayed; _onlyHoje = false; _filterStatus = null; })),
-                ]),
-              ),
-            ),
-            const SizedBox(width: 10),
-
-            // Busca
-            SizedBox(
-              width: 210, height: 34,
-              child: TextField(
-                controller: _search,
-                style: AppTheme.jakarta(fontSize: 12.5),
-                decoration: InputDecoration(
-                  hintText: 'Buscar OS, cliente...',
-                  prefixIcon: const Icon(LucideIcons.search, size: 14),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppColors.border)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppColors.border)),
-                  filled: true,
-                  fillColor: AppColors.background,
-                ),
-              ),
-            ),
-            if (hasFilter) ...[
-              const SizedBox(width: 6),
-              _ActionBtn(icon: LucideIcons.x, color: AppColors.error, onTap: _clear),
-            ],
-            const SizedBox(width: 6),
-            _ActionBtn(icon: LucideIcons.refreshCw, onTap: () => ref.invalidate(osProvider)),
-            const SizedBox(width: 6),
-            _PrimaryBtn(
-              icon: LucideIcons.plus,
-              label: 'Nova OS',
-              onTap: () => context.push('/orders/new'),
-            ),
-          ]),
-        ),
-
-        // ── Alertas ──────────────────────────────────────────────────────────
-        if (vencidasCount > 0 || hojeCount > 0 || queueAlert != null || lowStockCount > 0)
-          Container(
-            color: AppColors.surface,
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Wrap(spacing: 8, runSpacing: 4, children: [
-              if (vencidasCount > 0)
-                _AlertBanner(
-                  icon: LucideIcons.alertTriangle,
-                  text: '$vencidasCount OS com prazo vencido',
-                  color: AppColors.staleCrit,
-                  onTap: () => setState(() { _onlyDelayed = true; _onlyHoje = false; _filterStatus = null; }),
-                ),
-              if (hojeCount > 0)
-                _AlertBanner(
-                  icon: LucideIcons.calendarClock,
-                  text: '$hojeCount para entrega hoje',
-                  color: AppColors.staleWarn,
-                  onTap: () => setState(() { _onlyHoje = true; _onlyDelayed = false; _filterStatus = null; }),
-                ),
-              if (queueAlert != null)
-                _AlertBanner(icon: LucideIcons.alertCircle, text: queueAlert!, color: AppColors.corte),
-              if (lowStockCount > 0)
-                _AlertBanner(
-                  icon: LucideIcons.packageX,
-                  text: '$lowStockCount material(is) com estoque baixo',
-                  color: AppColors.espMaterial,
-                  onTap: () => context.push('/estoque'),
-                ),
-            ]),
-          ),
-
-        // ── Boards ────────────────────────────────────────────────────────────
-        Expanded(
-          child: filtered.isEmpty
-              ? const EmptyState(
-                  title: 'Nenhuma OS encontrada',
-                  message: 'Altere os filtros ou crie uma nova OS.',
-                  icon: LucideIcons.searchX,
-                )
-              : _buildBoards(context, filtered),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBoards(BuildContext context, List<ServiceOrder> orders) {
-    final isDesktop = MediaQuery.of(context).size.width > 900;
-
-    if (isDesktop) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            _boardLabel('PEDIDOS'),
-            Expanded(child: KanbanBoard(orders: orders, statuses: OSStatus.pedidosStatuses)),
-          ])),
-          VerticalDivider(width: 1, color: AppColors.border),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            _boardLabel('PRODUÇÃO'),
-            Expanded(child: KanbanBoard(orders: orders, statuses: OSStatus.producaoStatuses)),
-          ])),
-        ],
-      );
-    }
-    return KanbanBoard(
-      orders: orders,
-      statuses: [...OSStatus.pedidosStatuses, ...OSStatus.producaoStatuses],
-    );
-  }
-
-  Widget _boardLabel(String label) => Padding(
-    padding: const EdgeInsets.fromLTRB(18, 7, 16, 2),
-    child: Text(label,
-      style: AppTheme.jakarta(fontSize: 9, fontWeight: FontWeight.w800,
-        color: AppColors.textMuted).copyWith(letterSpacing: 2.2)),
-  );
 }
 
-// ── KPI Chip ──────────────────────────────────────────────────────────────────
-class _Chip extends StatelessWidget {
-  final IconData icon;
-  final String label, value;
-  final Color color;
-  final bool active;
-  final VoidCallback? onTap;
+class _Dashboard extends StatelessWidget {
+  final List<ServiceOrder> allOrders;
+  final bool isAdmin;
+  final String? currentUserId;
+  final int lowStockCount;
+  final VoidCallback onRefresh;
 
-  const _Chip({
-    required this.icon, required this.label, required this.value,
-    required this.color, this.active = false, this.onTap,
+  const _Dashboard({
+    required this.allOrders,
+    required this.isAdmin,
+    required this.currentUserId,
+    required this.lowStockCount,
+    required this.onRefresh,
   });
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: AnimatedContainer(
-      duration: const Duration(milliseconds: 130),
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: active ? color.withValues(alpha: 0.12) : AppColors.background,
-        borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: active ? color : AppColors.border, width: active ? 1.5 : 1),
+  Widget build(BuildContext context) {
+    var orders = allOrders.where((o) => !o.isArchived).toList();
+    if (!isAdmin && currentUserId != null) {
+      orders = orders.where((o) => o.createdBy == currentUserId).toList();
+    }
+
+    final today = DateTime.now();
+    final todayD = DateTime(today.year, today.month, today.day);
+
+    bool isToday(ServiceOrder o) {
+      if (o.status == OSStatus.entrega || o.scheduledDate == null) return false;
+      final d = o.scheduledDate!;
+      return d.year == today.year && d.month == today.month && d.day == today.day;
+    }
+
+    bool isOverdue(ServiceOrder o) {
+      if (o.status == OSStatus.entrega || o.scheduledDate == null) return false;
+      return DateTime(o.scheduledDate!.year, o.scheduledDate!.month, o.scheduledDate!.day)
+          .isBefore(todayD);
+    }
+
+    final total = orders.length;
+    final orcCount = orders.where((o) => o.status == OSStatus.orcamento).length;
+    final hojeCount = orders.where(isToday).length;
+    final vencidasCount = orders.where(isOverdue).length;
+
+    // "Precisam de atenção": vencidas primeiro, depois mais paradas, depois hoje.
+    final attention = orders.where((o) => isOverdue(o) || isToday(o) || o.daysStale > 2).toList()
+      ..sort((a, b) {
+        int score(ServiceOrder o) =>
+            (isOverdue(o) ? 1000 : 0) + (isToday(o) ? 500 : 0) + o.daysStale;
+        return score(b).compareTo(score(a));
+      });
+    final attentionTop = attention.take(6).toList();
+
+    return RefreshIndicator(
+      onRefresh: () async => onRefresh(),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 90),
+        children: [
+          // ── KPIs ──────────────────────────────────────────────────────────
+          ResponsiveKpiGrid(
+            gap: 10,
+            children: [
+              _DashKpi(
+                label: 'Total de OS',
+                value: '$total',
+                icon: LucideIcons.clipboardList,
+                color: AppColors.primary,
+                onTap: () => context.push('/orders'),
+              ),
+              _DashKpi(
+                label: 'Orçamentos',
+                value: '$orcCount',
+                icon: LucideIcons.fileText,
+                color: AppColors.orcamento,
+                onTap: () => context.push('/orders'),
+              ),
+              _DashKpi(
+                label: 'Entrega hoje',
+                value: '$hojeCount',
+                icon: LucideIcons.calendarCheck,
+                color: AppColors.staleOk,
+              ),
+              _DashKpi(
+                label: 'Vencidas',
+                value: '$vencidasCount',
+                icon: LucideIcons.calendarX,
+                color: AppColors.staleCrit,
+                onTap: () => context.push('/orders'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          // ── Alertas ───────────────────────────────────────────────────────
+          if (vencidasCount > 0)
+            _AlertBanner(
+              icon: LucideIcons.alertTriangle,
+              text: '$vencidasCount OS com prazo vencido',
+              color: AppColors.staleCrit,
+              onTap: () => context.push('/orders'),
+            ),
+          if (lowStockCount > 0)
+            _AlertBanner(
+              icon: LucideIcons.packageX,
+              text: '$lowStockCount material(is) com estoque baixo',
+              color: AppColors.espMaterial,
+              onTap: () => context.push('/estoque'),
+            ),
+
+          // ── Ver Kanban ──────────────────────────────────────────────────────
+          const SizedBox(height: 6),
+          _KanbanButton(onTap: () => context.go('/kanban')),
+
+          // ── Precisam de atenção ─────────────────────────────────────────────
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Text('Precisam de atenção',
+                  style: AppTheme.syne(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primary)),
+              const Spacer(),
+              if (attention.length > attentionTop.length)
+                GestureDetector(
+                  onTap: () => context.push('/orders'),
+                  child: Text('Ver todas',
+                      style: AppTheme.jakarta(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.accent)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (attentionTop.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 28),
+              alignment: Alignment.center,
+              child: Column(children: [
+                Icon(LucideIcons.checkCircle, size: 36, color: AppColors.success.withValues(alpha: 0.6)),
+                const SizedBox(height: 10),
+                Text('Tudo em dia!',
+                    style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
+              ]),
+            )
+          else
+            ...attentionTop.map((o) => OrderCard(order: o)),
+        ],
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 12, color: color),
-        const SizedBox(width: 5),
-        Text(value,
-          style: AppTheme.numeric(fontSize: 14, fontWeight: FontWeight.w800, color: color)),
-        const SizedBox(width: 4),
-        Text(label,
-          style: AppTheme.jakarta(fontSize: 11,
-            color: active ? color : AppColors.textSecondary,
-            fontWeight: active ? FontWeight.w600 : FontWeight.w400)),
-      ]),
-    ),
-  );
+    );
+  }
+}
+
+// ── KPI do dashboard (espelha o card do protótipo) ──────────────────────────────
+class _DashKpi extends StatelessWidget {
+  final String label, value;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
+
+  const _DashKpi({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTheme.jakarta(
+                              fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textMuted)),
+                    ),
+                    Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      child: Icon(icon, size: 15, color: color),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(value,
+                    style: AppTheme.numeric(fontSize: 24, fontWeight: FontWeight.w800, color: color)),
+              ],
+            ),
+          ),
+        ),
+      );
+}
+
+// ── Botão "Ver Kanban" ──────────────────────────────────────────────────────────
+class _KanbanButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _KanbanButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(children: [
+              const Icon(LucideIcons.layoutDashboard, size: 18, color: Colors.white),
+              const SizedBox(width: 10),
+              Text('Ver Quadro Kanban',
+                  style: AppTheme.jakarta(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+              const Spacer(),
+              const Icon(LucideIcons.chevronRight, size: 18, color: Colors.white),
+            ]),
+          ),
+        ),
+      );
 }
 
 // ── Alert Banner ──────────────────────────────────────────────────────────────
@@ -317,71 +311,29 @@ class _AlertBanner extends StatelessWidget {
   const _AlertBanner({required this.icon, required this.text, required this.color, this.onTap});
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 12, color: color),
-        const SizedBox(width: 6),
-        Text(text,
-          style: AppTheme.jakarta(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
-      ]),
-    ),
-  );
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-class _ActionBtn extends StatelessWidget {
-  final IconData icon;
-  final Color? color;
-  final VoidCallback onTap;
-  const _ActionBtn({required this.icon, required this.onTap, this.color});
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      width: 31, height: 31,
-      decoration: BoxDecoration(
-        color: color != null ? color!.withValues(alpha: 0.08) : AppColors.surface,
-        borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: color != null ? color!.withValues(alpha: 0.3) : AppColors.border),
-      ),
-      child: Icon(icon, size: 14, color: color ?? AppColors.textSecondary),
-    ),
-  );
-}
-
-class _PrimaryBtn extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _PrimaryBtn({required this.icon, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      height: 31,
-      padding: const EdgeInsets.symmetric(horizontal: 13),
-      decoration: BoxDecoration(
-        color: AppColors.accent,
-        borderRadius: BorderRadius.circular(7),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 14, color: Colors.white),
-        const SizedBox(width: 5),
-        Text(label,
-          style: AppTheme.jakarta(fontSize: 12.5, fontWeight: FontWeight.w700, color: Colors.white)),
-      ]),
-    ),
-  );
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+              border: Border.all(color: color.withValues(alpha: 0.25)),
+            ),
+            child: Row(children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(text,
+                    style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
+              ),
+              Icon(LucideIcons.chevronRight, size: 16, color: color.withValues(alpha: 0.7)),
+            ]),
+          ),
+        ),
+      );
 }
 
 // ── Error view ────────────────────────────────────────────────────────────────
@@ -392,12 +344,113 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      const Icon(LucideIcons.alertCircle, size: 48, color: AppColors.error),
-      const SizedBox(height: 16),
-      Text('Erro: $err', style: AppTheme.jakarta(fontSize: 13)),
-      const SizedBox(height: 16),
-      ElevatedButton(onPressed: onRetry, child: const Text('Tentar novamente')),
-    ]),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          const Icon(LucideIcons.alertCircle, size: 48, color: AppColors.error),
+          const SizedBox(height: 16),
+          Text(friendlyError(err), style: AppTheme.jakarta(fontSize: 13)),
+          const SizedBox(height: 16),
+          ElevatedButton(onPressed: onRetry, child: const Text('Tentar novamente')),
+        ]),
+      );
+}
+
+// ── Popup de etapas concluídas aguardando o ADM ─────────────────────────────────
+Future<void> showPendingAdminActionsDialog(
+  BuildContext context,
+  WidgetRef ref,
+  List<PendingAdminAction> initial,
+) {
+  return showDialog(
+    context: context,
+    builder: (ctx) {
+      final pending = List<PendingAdminAction>.from(initial);
+      return StatefulBuilder(
+        builder: (ctx, setState) {
+          return AlertDialog(
+            title: Row(children: [
+              const Icon(LucideIcons.bellRing, color: AppColors.accent, size: 20),
+              const SizedBox(width: 8),
+              const Text('Etapas concluídas'),
+            ]),
+            content: SizedBox(
+              width: 380,
+              child: pending.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text('Tudo liberado.'),
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: pending.map((a) {
+                        final stageLabel = OSStatus.labels[a.stage] ?? a.stage;
+                        final next = OSStatus.next(a.stage);
+                        final nextLabel = next != null ? (OSStatus.labels[next] ?? next) : null;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'OS ${a.order.formattedNumber} — ${a.employeeName}',
+                                  style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w700),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Terminou $stageLabel'
+                                  '${nextLabel != null ? ' → mover para $nextLabel?' : ''}',
+                                  style: AppTheme.jakarta(fontSize: 12, color: AppColors.textSecondary),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    TextButton(
+                                      onPressed: () => setState(() => pending.remove(a)),
+                                      child: const Text('Depois'),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    if (next != null)
+                                      ElevatedButton(
+                                        onPressed: () async {
+                                          final moved = await showDialog<bool>(
+                                            context: ctx,
+                                            builder: (_) => StatusTransitionDialog(
+                                              order: a.order,
+                                              targetStatus: next,
+                                            ),
+                                          );
+                                          if (moved == true) {
+                                            ref.invalidate(pendingAdminActionsProvider);
+                                            setState(() => pending.remove(a));
+                                          }
+                                        },
+                                        child: Text('Mover'),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Fechar'),
+              ),
+            ],
+          );
+        },
+      );
+    },
   );
 }

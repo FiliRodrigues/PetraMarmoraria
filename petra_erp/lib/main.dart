@@ -1,11 +1,23 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Fontes são embutidas como assets — usa os arquivos locais e nunca baixa.
+  GoogleFonts.config.allowRuntimeFetching = false;
+  LicenseRegistry.addLicense(() async* {
+    final syne = await rootBundle.loadString('assets/fonts/Syne-OFL.txt');
+    final pjs = await rootBundle.loadString('assets/fonts/PlusJakartaSans-OFL.txt');
+    yield LicenseEntryWithLineBreaks(const ['google_fonts', 'Syne'], syne);
+    yield LicenseEntryWithLineBreaks(const ['google_fonts', 'Plus Jakarta Sans'], pjs);
+  });
 
   // Inicializa dados de formatação de data para pt-BR (intl/table_calendar).
   await initializeDateFormatting('pt_BR', null);

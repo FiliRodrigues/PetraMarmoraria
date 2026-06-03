@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/os_status.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/utils/responsive.dart';
 import '../../models/models.dart';
 import 'kanban_column.dart';
 
@@ -36,10 +38,8 @@ class KanbanBoard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final groupedOrders = _groupOrdersByStatus();
-    final width = MediaQuery.of(context).size.width;
-    final isDesktop = width > 900;
 
-    if (isDesktop) {
+    if (context.isDesktop) {
       // Distribui as colunas igualmente numa única tela (sem rolagem horizontal).
       return Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -75,16 +75,21 @@ class KanbanBoard extends StatelessWidget {
                     Text(label),
                     const SizedBox(width: 6.0),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6.0,
+                        vertical: 2.0,
+                      ),
                       decoration: BoxDecoration(
-                        color: count > 0 ? AppColors.secondary : AppColors.lightGrey,
+                        color: count > 0
+                            ? AppColors.secondary
+                            : AppColors.lightGrey,
                         borderRadius: BorderRadius.circular(10.0),
                       ),
                       child: Text(
                         '$count',
-                        style: TextStyle(
-                          fontSize: 10.0,
-                          fontWeight: FontWeight.bold,
+                        style: AppTheme.numeric(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
                           color: count > 0 ? AppColors.primary : AppColors.grey,
                         ),
                       ),

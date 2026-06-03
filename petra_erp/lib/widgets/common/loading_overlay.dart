@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_theme.dart';
 
 /// An overlay widget to block interactions and display a loading indicator during async operations.
 class LoadingOverlay extends StatelessWidget {
@@ -22,10 +23,7 @@ class LoadingOverlay extends StatelessWidget {
           Stack(
             children: [
               // Semi-transparent backdrop to block interaction
-              const ModalBarrier(
-                dismissible: false,
-                color: Colors.black38,
-              ),
+              const ModalBarrier(dismissible: false, color: Colors.black38),
               Center(
                 child: Card(
                   color: Colors.white,
@@ -33,7 +31,10 @@ class LoadingOverlay extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12.0),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24.0,
+                      vertical: 16.0,
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -42,8 +43,8 @@ class LoadingOverlay extends StatelessWidget {
                           const SizedBox(height: 16.0),
                           Text(
                             message!,
-                            style: const TextStyle(
-                              fontSize: 14.0,
+                            style: AppTheme.jakarta(
+                              fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
                           ),

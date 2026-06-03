@@ -7,37 +7,101 @@ import 'screens/screens.dart';
 import 'widgets/widgets.dart';
 import 'providers/auth_provider.dart';
 
-// GoRouter provider that listens to auth state changes to trigger redirects
+final _publicRoutes = {
+  '/entrar',
+  '/login',
+  '/forgot-password',
+  '/funcionario',
+  '/funcionario/pin',
+  '/carregando',
+};
+
+bool _isPublic(String location) =>
+    _publicRoutes.contains(location) || location.startsWith('/funcionario');
+
+bool _isWorkerRoute(String location) =>
+    location == '/meu-painel' || location == '/meu-painel/trocar-pin';
+
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
+  final profileAsync = ref.watch(currentProfileProvider);
 
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/entrar',
     redirect: (context, state) {
-      // Treat loading as "no session yet" so router always lands somewhere.
       final user = authState.value;
+      final profile = profileAsync.value;
+      final profileLoading = profileAsync is AsyncLoading;
+      final location = state.matchedLocation;
 
-      final isLoggingIn = state.matchedLocation == '/login' ||
-                           state.matchedLocation == '/forgot-password';
+      final onPublic = _isPublic(location);
 
       if (user == null) {
-        return isLoggingIn ? null : '/login';
+        return onPublic ? null : '/entrar';
       }
 
-      if (isLoggingIn) {
-        return '/';
+      if (profile == null && profileLoading) {
+        if (location == '/carregando') return null;
+        return '/carregando';
+      }
+
+      if (profile != null && profile.isWorker) {
+        if (!_isWorkerRoute(location)) return '/meu-painel';
+        return null;
+      }
+
+      if (profile != null && !profile.isWorker) {
+        if (onPublic || location == '/carregando' || _isWorkerRoute(location)) {
+          return '/';
+        }
+
+        if ((location.startsWith('/employees') ||
+             location == '/configuracoes' ||
+             location == '/financeiro') &&
+            !profile.isAdmin) {
+          return '/';
+        }
+
+        return null;
       }
 
       return null;
     },
     routes: [
       GoRoute(
+        path: '/entrar',
+        builder: (context, state) => const RoleGateScreen(),
+      ),
+      GoRoute(
         path: '/login',
-        builder: (context, state) => const LoginScreen(),
+        builder: (context, state) {
+          final perfil = state.uri.queryParameters['perfil'] ?? 'admin';
+          return LoginScreen(perfil: perfil);
+        },
       ),
       GoRoute(
         path: '/forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/funcionario',
+        builder: (context, state) => const WorkerSelectScreen(),
+      ),
+      GoRoute(
+        path: '/funcionario/pin',
+        builder: (context, state) => const WorkerPinScreen(),
+      ),
+      GoRoute(
+        path: '/carregando',
+        builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: '/meu-painel',
+        builder: (context, state) => const WorkerHomeScreen(),
+      ),
+      GoRoute(
+        path: '/meu-painel/trocar-pin',
+        builder: (context, state) => const ChangePinScreen(),
       ),
       ShellRoute(
         builder: (context, state, child) {
@@ -47,6 +111,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/',
             builder: (context, state) => const HomeScreen(),
+          ),
+          GoRoute(
+            path: '/kanban',
+            builder: (context, state) => const KanbanScreen(),
           ),
           GoRoute(
             path: '/customers',
@@ -148,6 +216,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/profile',
             builder: (context, state) => const ProfileScreen(),
+          ),
+          GoRoute(
+            path: '/configuracoes',
+            builder: (context, state) => const SettingsScreen(),
           ),
         ],
       ),

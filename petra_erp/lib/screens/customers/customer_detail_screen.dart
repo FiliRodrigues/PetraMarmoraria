@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import '../../core/utils/error_messages.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/customer_provider.dart';
 import '../../providers/os_provider.dart';
@@ -12,10 +14,30 @@ import '../../widgets/widgets.dart';
 class CustomerDetailScreen extends ConsumerWidget {
   final String id;
 
-  const CustomerDetailScreen({
-    super.key,
-    required this.id,
-  });
+  const CustomerDetailScreen({super.key, required this.id});
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final ok = await ConfirmDialog.show(
+      context,
+      title: 'Excluir Cliente',
+      content:
+          'Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita.',
+      confirmLabel: 'Excluir',
+      confirmColor: AppColors.error,
+    );
+    if (!ok) return;
+    try {
+      await ref.read(customerProvider.notifier).deleteCustomer(id);
+      if (context.mounted) {
+        AppSnackbar.success(context, 'Cliente excluído.');
+        context.pop();
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppSnackbar.error(context, friendlyError(e));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -32,6 +54,11 @@ class CustomerDetailScreen extends ConsumerWidget {
             icon: const Icon(Icons.edit),
             tooltip: 'Editar Cliente',
             onPressed: () => context.push('/customers/$id/edit'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Excluir Cliente',
+            onPressed: () => _confirmDelete(context, ref),
           ),
         ],
       ),
@@ -71,9 +98,9 @@ class CustomerDetailScreen extends ConsumerWidget {
                                 children: [
                                   Text(
                                     customer.name,
-                                    style: const TextStyle(
-                                      fontSize: 20.0,
-                                      fontWeight: FontWeight.bold,
+                                    style: AppTheme.syne(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w700,
                                       color: AppColors.primary,
                                     ),
                                   ),
@@ -81,7 +108,10 @@ class CustomerDetailScreen extends ConsumerWidget {
                                     const SizedBox(height: 4.0),
                                     Text(
                                       customer.cpfCnpj!,
-                                      style: const TextStyle(color: AppColors.grey),
+                                      style: AppTheme.numeric(
+                                        color: AppColors.grey,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ],
                                 ],
@@ -166,11 +196,11 @@ class CustomerDetailScreen extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Histórico de Ordens de Serviço',
-                      style: TextStyle(
-                        fontSize: 16.0,
-                        fontWeight: FontWeight.bold,
+                      style: AppTheme.syne(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
                         color: AppColors.primary,
                       ),
                     ),
@@ -184,7 +214,10 @@ class CustomerDetailScreen extends ConsumerWidget {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.secondary,
                         foregroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 8.0,
+                        ),
                       ),
                     ),
                   ],
@@ -194,16 +227,18 @@ class CustomerDetailScreen extends ConsumerWidget {
                 // OS List Loader
                 ordersAsync.when(
                   data: (orders) {
-                    final customerOrders = orders.where((o) => o.customerId == id).toList();
+                    final customerOrders = orders
+                        .where((o) => o.customerId == id)
+                        .toList();
 
                     if (customerOrders.isEmpty) {
-                      return const Card(
+                      return Card(
                         child: Padding(
                           padding: EdgeInsets.all(24.0),
                           child: Text(
                             'Nenhuma ordem de serviço registrada para este cliente.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: AppColors.grey),
+                            style: AppTheme.jakarta(color: AppColors.grey),
                           ),
                         ),
                       );
@@ -224,8 +259,8 @@ class CustomerDetailScreen extends ConsumerWidget {
                                 color: order.daysStale <= 2
                                     ? AppColors.success
                                     : order.daysStale <= 5
-                                        ? AppColors.warning
-                                        : AppColors.error,
+                                    ? AppColors.warning
+                                    : AppColors.error,
                                 borderRadius: const BorderRadius.only(
                                   topLeft: Radius.circular(4),
                                   bottomLeft: Radius.circular(4),
@@ -236,7 +271,9 @@ class CustomerDetailScreen extends ConsumerWidget {
                               children: [
                                 Text(
                                   order.formattedNumber,
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  style: AppTheme.numeric(
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                                 const SizedBox(width: 8.0),
                                 StatusBadge(status: order.status),
@@ -246,10 +283,15 @@ class CustomerDetailScreen extends ConsumerWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const SizedBox(height: 4.0),
-                                Text(order.material ?? 'Sem material informado'),
+                                Text(
+                                  order.material ?? 'Sem material informado',
+                                ),
                                 Text(
                                   'Criada em ${dateFormat.format(order.createdAt)}',
-                                  style: const TextStyle(fontSize: 11.0, color: AppColors.grey),
+                                  style: AppTheme.jakarta(
+                                    fontSize: 11,
+                                    color: AppColors.grey,
+                                  ),
                                 ),
                               ],
                             ),
@@ -259,7 +301,10 @@ class CustomerDetailScreen extends ConsumerWidget {
                               children: [
                                 Text(
                                   currencyFormat.format(order.totalValue),
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.0),
+                                  style: AppTheme.numeric(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                  ),
                                 ),
                                 const Icon(Icons.chevron_right, size: 18.0),
                               ],
@@ -270,15 +315,16 @@ class CustomerDetailScreen extends ConsumerWidget {
                       },
                     );
                   },
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (err, _) => Center(child: Text('Erro ao carregar OS: $err')),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (err, _) => Center(child: Text(friendlyError(err))),
                 ),
               ],
             ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Erro ao carregar cliente: $err')),
+        error: (err, _) => Center(child: Text(friendlyError(err))),
       ),
     );
   }
@@ -295,17 +341,17 @@ class CustomerDetailScreen extends ConsumerWidget {
             children: [
               Text(
                 label,
-                style: const TextStyle(
-                  fontSize: 11.0,
+                style: AppTheme.jakarta(
+                  fontSize: 11,
                   color: AppColors.grey,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 2.0),
               Text(
                 value,
-                style: const TextStyle(
-                  fontSize: 14.0,
+                style: AppTheme.jakarta(
+                  fontSize: 14,
                   color: AppColors.primary,
                   fontWeight: FontWeight.w500,
                 ),

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
+import 'app_button.dart';
 
 /// A reusable confirmation dialog with customized titles and actions.
 class ConfirmDialog extends StatelessWidget {
@@ -39,30 +43,77 @@ class ConfirmDialog extends StatelessWidget {
     return result ?? false;
   }
 
+  bool get _isDestructive =>
+      confirmColor == AppColors.error ||
+      RegExp(r'excluir|sair|remover|apagar|deletar', caseSensitive: false)
+          .hasMatch(confirmLabel);
+
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.bold),
+    final destructive = _isDestructive;
+    final iconColor = destructive ? AppColors.error : AppColors.primary;
+    final iconBg = destructive
+        ? const Color(0xFFFBE9E7)
+        : AppColors.primary.withValues(alpha: 0.08);
+
+    return Dialog(
+      backgroundColor: AppColors.surface,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 22, 22, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 42, height: 42,
+                    decoration: BoxDecoration(
+                      color: iconBg,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    ),
+                    child: Icon(
+                      destructive ? LucideIcons.alertTriangle : LucideIcons.info,
+                      size: 21, color: iconColor,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(title, style: AppTheme.syne(fontSize: 17, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 7),
+                  Text(content,
+                    style: AppTheme.jakarta(fontSize: 13, color: AppColors.textSecondary)),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  AppButton(
+                    label: cancelLabel,
+                    variant: AppButtonVariant.outline,
+                    size: AppButtonSize.sm,
+                    onPressed: () => Navigator.of(context).pop(false),
+                  ),
+                  const SizedBox(width: 9),
+                  AppButton(
+                    label: confirmLabel,
+                    variant: destructive ? AppButtonVariant.danger : AppButtonVariant.primary,
+                    size: AppButtonSize.sm,
+                    onPressed: () => Navigator.of(context).pop(true),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
-      content: Text(content),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: Text(
-            cancelLabel,
-            style: const TextStyle(color: Colors.grey),
-          ),
-        ),
-        ElevatedButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          style: confirmColor != null
-              ? ElevatedButton.styleFrom(backgroundColor: confirmColor, foregroundColor: Colors.white)
-              : null,
-          child: Text(confirmLabel),
-        ),
-      ],
     );
   }
 }

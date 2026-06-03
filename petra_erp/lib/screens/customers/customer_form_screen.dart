@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/utils/error_messages.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/validators.dart';
 import '../../models/customer.dart';
@@ -13,10 +15,7 @@ import '../../widgets/widgets.dart';
 class CustomerFormScreen extends ConsumerStatefulWidget {
   final String? id;
 
-  const CustomerFormScreen({
-    super.key,
-    this.id,
-  });
+  const CustomerFormScreen({super.key, this.id});
 
   @override
   ConsumerState<CustomerFormScreen> createState() => _CustomerFormScreenState();
@@ -24,7 +23,7 @@ class CustomerFormScreen extends ConsumerStatefulWidget {
 
 class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  
+
   final _nameController = TextEditingController();
   final _cpfCnpjController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -58,7 +57,9 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
           _nameController.text = customer.name;
           _cpfCnpjController.text = customer.cpfCnpj ?? '';
           _phoneController.text = Formatters.formatPhone(customer.phone);
-          _phone2Controller.text = customer.phone2 != null ? Formatters.formatPhone(customer.phone2!) : '';
+          _phone2Controller.text = customer.phone2 != null
+              ? Formatters.formatPhone(customer.phone2!)
+              : '';
           _emailController.text = customer.email ?? '';
           _addressController.text = customer.address ?? '';
           _cityController.text = customer.city ?? '';
@@ -103,14 +104,26 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
     final customer = Customer(
       id: _isEditing ? widget.id! : const Uuid().v4(),
       name: _nameController.text.trim(),
-      cpfCnpj: _cpfCnpjController.text.trim().isEmpty ? null : _cpfCnpjController.text.trim(),
+      cpfCnpj: _cpfCnpjController.text.trim().isEmpty
+          ? null
+          : _cpfCnpjController.text.trim(),
       phone: cleanPhone,
       phone2: cleanPhone2.isEmpty ? null : cleanPhone2,
-      email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-      address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
-      city: _cityController.text.trim().isEmpty ? null : _cityController.text.trim(),
-      state: _stateController.text.trim().isEmpty ? 'SP' : _stateController.text.trim(),
-      notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+      email: _emailController.text.trim().isEmpty
+          ? null
+          : _emailController.text.trim(),
+      address: _addressController.text.trim().isEmpty
+          ? null
+          : _addressController.text.trim(),
+      city: _cityController.text.trim().isEmpty
+          ? null
+          : _cityController.text.trim(),
+      state: _stateController.text.trim().isEmpty
+          ? 'SP'
+          : _stateController.text.trim(),
+      notes: _notesController.text.trim().isEmpty
+          ? null
+          : _notesController.text.trim(),
       createdAt: DateTime.now(),
     );
 
@@ -126,7 +139,7 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'Erro ao salvar cliente: $e';
+        _errorMessage = friendlyError(e);
       });
     } finally {
       if (mounted) {
@@ -148,181 +161,183 @@ class _CustomerFormScreenState extends ConsumerState<CustomerFormScreen> {
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
-          child: Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (_errorMessage != null) ...[
-                      Container(
-                        padding: const EdgeInsets.all(12.0),
-                        decoration: BoxDecoration(
-                          color: AppColors.error.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                        child: Text(
-                          _errorMessage!,
-                          style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      const SizedBox(height: 16.0),
-                    ],
-
-                    // Name
-                    TextFormField(
-                      controller: _nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nome Completo / Razão Social *',
-                        prefixIcon: Icon(Icons.person),
-                      ),
-                      validator: (val) => Validators.validateRequired(val, 'Nome'),
-                    ),
-                    const SizedBox(height: 16.0),
-
-                    // Phone 1 & Phone 2
-                    Row(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _phoneController,
-                            keyboardType: TextInputType.phone,
-                            inputFormatters: [PhoneInputFormatter()],
-                            decoration: const InputDecoration(
-                              labelText: 'Telefone Principal *',
-                              prefixIcon: Icon(Icons.phone),
-                              hintText: '(00) 00000-0000',
+                        if (_errorMessage != null) ...[
+                          Container(
+                            padding: const EdgeInsets.all(12.0),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radiusSm,
+                              ),
                             ),
-                            validator: (val) => Validators.validateRequired(val, 'Telefone principal'),
+                            child: Text(
+                              _errorMessage!,
+                              style: AppTheme.jakarta(
+                                color: AppColors.error,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16.0),
+                        ],
+
+                        // Name
+                        TextFormField(
+                          controller: _nameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Nome Completo / Razão Social *',
+                            prefixIcon: Icon(Icons.person),
+                          ),
+                          validator: (val) =>
+                              Validators.validateRequired(val, 'Nome'),
+                        ),
+                        const SizedBox(height: 16.0),
+
+                        // Phone 1 & Phone 2
+                        AdaptiveFieldRow(
+                          children: [
+                            TextFormField(
+                              controller: _phoneController,
+                              keyboardType: TextInputType.phone,
+                              inputFormatters: [PhoneInputFormatter()],
+                              decoration: const InputDecoration(
+                                labelText: 'Telefone Principal *',
+                                prefixIcon: Icon(Icons.phone),
+                                hintText: '(00) 00000-0000',
+                              ),
+                              validator: Validators.validatePhone,
+                            ),
+                            TextFormField(
+                              controller: _phone2Controller,
+                              keyboardType: TextInputType.phone,
+                              inputFormatters: [PhoneInputFormatter()],
+                              decoration: const InputDecoration(
+                                labelText: 'Telefone Secundário',
+                                prefixIcon: Icon(Icons.phone_iphone),
+                                hintText: '(00) 00000-0000',
+                              ),
+                              validator: Validators.validatePhoneOptional,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16.0),
+
+                        // CPF/CNPJ & Email
+                        AdaptiveFieldRow(
+                          children: [
+                            TextFormField(
+                              controller: _cpfCnpjController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [CpfCnpjInputFormatter()],
+                              decoration: const InputDecoration(
+                                labelText: 'CPF / CNPJ',
+                                prefixIcon: Icon(Icons.badge),
+                                hintText: '000.000.000-00',
+                              ),
+                              validator: Validators.validateCpfCnpj,
+                            ),
+                            TextFormField(
+                              controller: _emailController,
+                              keyboardType: TextInputType.emailAddress,
+                              decoration: const InputDecoration(
+                                labelText: 'E-mail',
+                                prefixIcon: Icon(Icons.email),
+                              ),
+                              validator: Validators.validateEmailOptional,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16.0),
+
+                        // Address
+                        TextFormField(
+                          controller: _addressController,
+                          decoration: const InputDecoration(
+                            labelText: 'Endereço (Rua, Número, Bairro)',
+                            prefixIcon: Icon(Icons.location_on),
                           ),
                         ),
-                        const SizedBox(width: 16.0),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _phone2Controller,
-                            keyboardType: TextInputType.phone,
-                            inputFormatters: [PhoneInputFormatter()],
-                            decoration: const InputDecoration(
-                              labelText: 'Telefone Secundário',
-                              prefixIcon: Icon(Icons.phone_iphone),
-                              hintText: '(00) 00000-0000',
+                        const SizedBox(height: 16.0),
+
+                        // City & State
+                        AdaptiveFieldRow(
+                          flex: const [3, 1],
+                          children: [
+                            TextFormField(
+                              controller: _cityController,
+                              decoration: const InputDecoration(
+                                labelText: 'Cidade',
+                                prefixIcon: Icon(Icons.location_city),
+                              ),
                             ),
+                            TextFormField(
+                              controller: _stateController,
+                              maxLength: 2,
+                              decoration: const InputDecoration(
+                                labelText: 'UF',
+                                counterText: '',
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16.0),
+
+                        // Notes
+                        TextFormField(
+                          controller: _notesController,
+                          maxLines: 4,
+                          decoration: const InputDecoration(
+                            labelText: 'Observações Internas',
+                            prefixIcon: Icon(Icons.note),
+                            alignLabelWithHint: true,
                           ),
+                        ),
+                        const SizedBox(height: 32.0),
+
+                        // Actions Row
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: () => context.pop(),
+                              child: Text(
+                                'Cancelar',
+                                style: AppTheme.jakarta(
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16.0),
+                            ElevatedButton(
+                              onPressed: _isLoading ? null : _saveCustomer,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 32.0,
+                                  vertical: 16.0,
+                                ),
+                              ),
+                              child: Text(
+                                _isEditing ? 'SALVAR ALTERAÇÕES' : 'CADASTRAR',
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16.0),
-
-                    // CPF/CNPJ & Email
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _cpfCnpjController,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [CpfCnpjInputFormatter()],
-                            decoration: const InputDecoration(
-                              labelText: 'CPF / CNPJ',
-                              prefixIcon: Icon(Icons.badge),
-                              hintText: '000.000.000-00',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16.0),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            decoration: const InputDecoration(
-                              labelText: 'E-mail',
-                              prefixIcon: Icon(Icons.email),
-                            ),
-                            validator: (val) {
-                              if (val != null && val.isNotEmpty) {
-                                return Validators.validateEmail(val);
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16.0),
-
-                    // Address
-                    TextFormField(
-                      controller: _addressController,
-                      decoration: const InputDecoration(
-                        labelText: 'Endereço (Rua, Número, Bairro)',
-                        prefixIcon: Icon(Icons.location_on),
-                      ),
-                    ),
-                    const SizedBox(height: 16.0),
-
-                    // City & State
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: TextFormField(
-                            controller: _cityController,
-                            decoration: const InputDecoration(
-                              labelText: 'Cidade',
-                              prefixIcon: Icon(Icons.location_city),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16.0),
-                        Expanded(
-                          flex: 1,
-                          child: TextFormField(
-                            controller: _stateController,
-                            maxLength: 2,
-                            decoration: const InputDecoration(
-                              labelText: 'UF',
-                              counterText: '',
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16.0),
-
-                    // Notes
-                    TextFormField(
-                      controller: _notesController,
-                      maxLines: 4,
-                      decoration: const InputDecoration(
-                        labelText: 'Observações Internas',
-                        prefixIcon: Icon(Icons.note),
-                        alignLabelWithHint: true,
-                      ),
-                    ),
-                    const SizedBox(height: 32.0),
-
-                    // Actions Row
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => context.pop(),
-                          child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
-                        ),
-                        const SizedBox(width: 16.0),
-                        ElevatedButton(
-                          onPressed: _isLoading ? null : _saveCustomer,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
-                          ),
-                          child: Text(_isEditing ? 'SALVAR ALTERAÇÕES' : 'CADASTRAR'),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),

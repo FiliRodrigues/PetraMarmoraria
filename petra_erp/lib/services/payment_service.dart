@@ -73,15 +73,15 @@ class PaymentService {
   }) async {
     if (count <= 0) return;
     final userId = _client.auth.currentUser?.id;
-    // Distribui o total, ajustando a última parcela p/ fechar o valor exato.
-    final base = (totalAmount / count);
-    final rounded = double.parse(base.toStringAsFixed(2));
+    // Trabalha em centavos (int) para fechar o total exato sem erro de ponto flutuante.
+    // Divide igualmente e distribui o resto (1 centavo) nas primeiras parcelas.
+    final totalCents = (totalAmount * 100).round();
+    final baseCents = totalCents ~/ count;
+    final remainder = totalCents % count;
     final rows = <Map<String, dynamic>>[];
     for (var i = 0; i < count; i++) {
-      final isLast = i == count - 1;
-      final amount = isLast
-          ? double.parse((totalAmount - rounded * (count - 1)).toStringAsFixed(2))
-          : rounded;
+      final cents = baseCents + (i < remainder ? 1 : 0);
+      final amount = cents / 100;
       final due = DateTime(firstDueDate.year, firstDueDate.month + i, firstDueDate.day);
       rows.add({
         'order_id': orderId,
@@ -116,7 +116,7 @@ class PaymentService {
       final data = {
         'status': PaymentConstants.pago,
         'paid_at': DateTime.now().toIso8601String(),
-        if (method != null) 'method': method,
+        'method': ?method,
       };
       await _client.from('payments').update(data).eq('id', id);
     } catch (e) {

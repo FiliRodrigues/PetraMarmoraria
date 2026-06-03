@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/utils/error_messages.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
@@ -58,7 +59,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
       body: customersAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) =>
-            Center(child: Text('Erro ao carregar clientes: $err')),
+            Center(child: Text(friendlyError(err))),
         data: (customers) {
           final query = _searchText.trim().toLowerCase();
           final filtered = query.isEmpty
@@ -165,19 +166,11 @@ class _CustomerCardState extends State<_CustomerCard> {
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
             border: Border.all(
               color: _hover ? AppColors.accent : AppColors.border,
             ),
-            boxShadow: _hover
-                ? const [
-                    BoxShadow(
-                      color: AppColors.shadowElevated,
-                      blurRadius: 14,
-                      offset: Offset(0, 4),
-                    ),
-                  ]
-                : null,
+            boxShadow: _hover ? AppTheme.shadowMedium : AppTheme.shadowSoft,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -314,18 +307,17 @@ class _InfoLine extends StatelessWidget {
 /// Avatar quadrado com gradiente navy→âmbar e iniciais.
 class _Avatar extends StatelessWidget {
   final String initials;
-  final Color? color;
-  const _Avatar({required this.initials, this.color});
+  const _Avatar({required this.initials});
 
   @override
   Widget build(BuildContext context) {
-    final base = color ?? AppColors.primary;
+    final base = AppColors.primary;
     return Container(
       width: 44,
       height: 44,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -381,7 +373,7 @@ class _ListHeader extends StatelessWidget {
                 title,
                 style: AppTheme.syne(
                   fontSize: 17,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   color: AppColors.primary,
                 ),
               ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/utils/error_messages.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -39,7 +40,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
       ),
       body: paymentsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Erro ao carregar financeiro: $err')),
+        error: (err, _) => Center(child: Text(friendlyError(err))),
         data: (payments) {
           final pendentes = payments.where((p) => !p.isPaid).toList();
           final vencidos = payments.where((p) => p.isOverdue).toList();
@@ -64,7 +65,8 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
               // KPIs
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                child: Row(
+                child: ResponsiveKpiGrid(
+                  gap: 10,
                   children: [
                     _Kpi(
                       label: 'A receber',
@@ -72,21 +74,18 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
                       color: AppColors.accent,
                       icon: LucideIcons.wallet,
                     ),
-                    const SizedBox(width: 10),
                     _Kpi(
                       label: 'Vencido',
                       value: Formatters.formatCurrency(vencidoTotal),
                       color: AppColors.staleCrit,
                       icon: LucideIcons.alertTriangle,
                     ),
-                    const SizedBox(width: 10),
                     _Kpi(
                       label: 'Recebido (mês)',
                       value: Formatters.formatCurrency(recebidoMes),
                       color: AppColors.staleOk,
                       icon: LucideIcons.checkCircle,
                     ),
-                    const SizedBox(width: 10),
                     _Kpi(
                       label: 'OS com saldo',
                       value: '$osComSaldo',
@@ -247,7 +246,7 @@ class _PaymentTile extends StatelessWidget {
           width: 40, height: 40,
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           ),
           child: Icon(
             paid ? LucideIcons.checkCircle : (overdue ? LucideIcons.alertTriangle : LucideIcons.clock),

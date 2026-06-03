@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/utils/error_messages.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -71,7 +72,7 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
       ),
       body: ordersAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Erro ao carregar agenda: $err')),
+        error: (err, _) => Center(child: Text(friendlyError(err))),
         data: (orders) {
           final events = _buildEvents(orders);
           final selected = _selectedDay ?? _focusedDay;
@@ -115,7 +116,7 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
                     headerStyle: HeaderStyle(
                       formatButtonDecoration: BoxDecoration(
                         color: AppColors.accent.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                       ),
                       formatButtonTextStyle: AppTheme.jakarta(
                         fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.accent),
@@ -125,14 +126,14 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
                     ),
                     calendarStyle: CalendarStyle(
                       todayDecoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
+                        color: AppColors.primary.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                       ),
                       todayTextStyle: AppTheme.jakarta(
                         fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary),
-                      selectedDecoration: const BoxDecoration(
+                      selectedDecoration: BoxDecoration(
                         color: AppColors.accent,
-                        shape: BoxShape.circle,
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                       ),
                       markerDecoration: const BoxDecoration(
                         color: AppColors.primary,
@@ -150,7 +151,7 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
                             width: 6,
                             height: 6,
                             decoration: BoxDecoration(
-                              color: hasOverdue ? AppColors.staleCrit : AppColors.primary,
+                              color: hasOverdue ? AppColors.staleCrit : AppColors.info,
                               shape: BoxShape.circle,
                             ),
                           ),

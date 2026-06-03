@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
 
-/// Screen for user login. Features a centered card on desktop, validations,
-/// and handles Supabase authentication.
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  final String perfil;
+
+  const LoginScreen({super.key, this.perfil = 'admin'});
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -18,10 +19,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  
+
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _errorMessage;
+
+  bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
+  bool _rememberBiometric = false;
+
+  Color get _accentColor =>
+      widget.perfil == 'vendedor' ? AppColors.accent : AppColors.primary;
+
+  String get _titleLabel =>
+      widget.perfil == 'vendedor' ? 'VENDEDOR' : 'ADMINISTRADOR';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBiometricState();
+  }
+
+  Future<void> _loadBiometricState() async {
+    final service = ref.read(biometricAuthServiceProvider);
+    final available = await service.isAvailable();
+    final enabled = available && await service.isEnabled();
+    if (!mounted) return;
+    setState(() {
+      _biometricAvailable = available;
+      _biometricEnabled = enabled;
+    });
+  }
 
   @override
   void dispose() {
@@ -38,12 +66,48 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _errorMessage = null;
     });
 
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
     try {
-      await ref.read(authProvider.notifier).login(
-        _emailController.text.trim(),
-        _passwordController.text,
-      );
+      if (_rememberBiometric && _biometricAvailable) {
+        // Persiste antes do login para não correr com o redirect do go_router.
+        await ref.read(biometricAuthServiceProvider).enable(email, password);
+      }
+      await ref.read(authProvider.notifier).login(email, password);
       // GoRouter redirect logic in app.dart will automatically navigate to '/'
+    } catch (e) {
+      if (_rememberBiometric && _biometricAvailable) {
+        await ref.read(biometricAuthServiceProvider).disable();
+      }
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleBiometricLogin() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final creds = await ref
+          .read(biometricAuthServiceProvider)
+          .authenticateAndGetCredentials();
+      if (creds == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+      await ref.read(authProvider.notifier).login(creds.email, creds.password);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -66,6 +130,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: AppColors.textSecondary,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/entrar'),
+        ),
+      ),
       body: Center(
         child: SingleChildScrollView(
           child: ConstrainedBox(
@@ -85,30 +158,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Brand Logo/Header
                       const Icon(
                         Icons.store_mall_directory_outlined,
                         size: 64.0,
                         color: AppColors.secondary,
                       ),
                       const SizedBox(height: 16.0),
-                      const Text(
+                      Text(
                         'PETRA MARMORARIA',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: AppTheme.syne(
                           fontSize: 20.0,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                          letterSpacing: 1.5,
-                        ),
+                          color: _accentColor,
+                        ).copyWith(letterSpacing: 1.5),
                       ),
-                      const Text(
-                        'Sistema de Gestão ERP',
+                      Text(
+                        _titleLabel,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13.0,
-                          color: AppColors.grey,
-                        ),
+                        style: AppTheme.jakarta(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: _accentColor,
+                        ).copyWith(letterSpacing: 3),
                       ),
                       const SizedBox(height: 32.0),
 
@@ -134,8 +206,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           prefixIcon: const Icon(Icons.lock_outlined),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscurePassword 
-                                  ? Icons.visibility_outlined 
+                              _obscurePassword
+                                  ? Icons.visibility_outlined
                                   : Icons.visibility_off_outlined,
                             ),
                             onPressed: () {
@@ -148,17 +220,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         validator: Validators.validatePassword,
                         onFieldSubmitted: (_) => _handleLogin(),
                       ),
-                      
+
                       // Forgot Password Link
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: () => context.push('/forgot-password'),
-                          child: const Text(
+                          child: Text(
                             'Esqueceu a senha?',
-                            style: TextStyle(
-                              color: AppColors.secondary,
+                            style: AppTheme.jakarta(
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
+                              color: AppColors.secondary,
                             ),
                           ),
                         ),
@@ -169,9 +242,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       if (_errorMessage != null) ...[
                         Text(
                           _errorMessage!,
-                          style: const TextStyle(
-                            color: AppColors.error,
+                          style: AppTheme.jakarta(
                             fontSize: 13.0,
+                            color: AppColors.error,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -182,7 +255,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ElevatedButton(
                         onPressed: _isLoading ? null : _handleLogin,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
+                          backgroundColor: _accentColor,
                           foregroundColor: AppColors.background,
                           padding: const EdgeInsets.symmetric(vertical: 16.0),
                         ),
@@ -199,6 +272,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               )
                             : const Text('ENTRAR'),
                       ),
+
+                      if (_biometricEnabled) ...[
+                        const SizedBox(height: 12.0),
+                        OutlinedButton.icon(
+                          onPressed: _isLoading ? null : _handleBiometricLogin,
+                          icon: const Icon(Icons.fingerprint),
+                          label: const Text('Entrar com biometria'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _accentColor,
+                            side: BorderSide(color: _accentColor),
+                            padding: const EdgeInsets.symmetric(vertical: 16.0),
+                          ),
+                        ),
+                      ] else if (_biometricAvailable) ...[
+                        const SizedBox(height: 4.0),
+                        CheckboxListTile(
+                          value: _rememberBiometric,
+                          onChanged: (v) => setState(() => _rememberBiometric = v ?? false),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          activeColor: _accentColor,
+                          title: Text(
+                            'Ativar entrada por biometria neste aparelho',
+                            style: AppTheme.jakarta(fontSize: 12.5, color: AppColors.textSecondary),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

@@ -66,11 +66,14 @@ class ServiceOrderService {
   Future<ServiceOrder> updateServiceOrder(ServiceOrder order) async {
     try {
       // Não sobrescreve created_by no update (preserva o vendedor original).
+      // status_changed_at só muda via moveStatus; editar a OS não pode resetar
+      // o relógio de "tempo parado" (daysStale/isDelayed).
       final data = order.toMap()
         ..remove('created_at')
         ..remove('updated_at')
         ..remove('display_number')
-        ..remove('created_by');
+        ..remove('created_by')
+        ..remove('status_changed_at');
       final response = await _client
           .from('service_orders')
           .update(data)
@@ -96,7 +99,9 @@ class ServiceOrderService {
       final all = await getServiceOrders();
       final cutoff = DateTime.now().subtract(Duration(days: maxStaleDays));
       return all.where((o) =>
-          o.status != OSStatus.entrega && o.statusChangedAt.isBefore(cutoff)).toList();
+          o.status != OSStatus.entrega &&
+          o.status != OSStatus.entregue &&
+          o.statusChangedAt.isBefore(cutoff)).toList();
     } catch (e) {
       rethrow;
     }
@@ -199,17 +204,13 @@ class ServiceOrderService {
   // Filtro opcional por período sobre assigned_at.
   Future<List<OrderAssignment>> getAllAssignments({DateTime? from, DateTime? to}) async {
     try {
-      var query = _client.from('order_assignments').select('*, profiles(name)');
-      if (from != null) {
-        query = query.gte('assigned_at', from.toIso8601String());
-      }
-      if (to != null) {
-        query = query.lte('assigned_at', to.toIso8601String());
-      }
-      final response = await query.order('assigned_at', ascending: false);
+      final response = await _client
+          .rpc('get_all_order_assignments', params: {
+            if (from != null) 'p_from': from.toIso8601String(),
+            if (to != null) 'p_to': to.toIso8601String(),
+          });
       return (response as List).map((e) {
-        final employeeName = e['profiles'] != null ? e['profiles']['name'] as String? : null;
-        return OrderAssignment.fromMap(e, employeeName: employeeName);
+        return OrderAssignment.fromMap(e, employeeName: e['employee_name'] as String?);
       }).toList();
     } catch (e) {
       rethrow;
@@ -220,13 +221,9 @@ class ServiceOrderService {
   Future<List<OrderAssignment>> getAssignments(String orderId) async {
     try {
       final response = await _client
-          .from('order_assignments')
-          .select('*, profiles(name)')
-          .eq('order_id', orderId)
-          .order('assigned_at', ascending: false);
+          .rpc('get_order_assignments', params: {'p_order_id': orderId});
       return (response as List).map((e) {
-        final employeeName = e['profiles'] != null ? e['profiles']['name'] as String? : null;
-        return OrderAssignment.fromMap(e, employeeName: employeeName);
+        return OrderAssignment.fromMap(e, employeeName: e['employee_name'] as String?);
       }).toList();
     } catch (e) {
       rethrow;

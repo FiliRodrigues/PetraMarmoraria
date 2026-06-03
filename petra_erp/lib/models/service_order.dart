@@ -8,12 +8,13 @@ class ServiceOrder {
   final String customerId;
   final String? customerName; // From customer join
   final String description;
-  final String status; // orcamento, aprovado, recebido, esperando_material, corte, montagem, entrega
+  final String status; // orcamento, aprovado, esperando_material, corte, montagem, entrega
   final int queuePosition;
   final String? material;
   final String? edgeType;
   final Map<String, dynamic> measurements;
   final String? drawingUrl;
+  final String? budgetUrl;
   final double totalValue;
   final DateTime statusChangedAt;
   final DateTime? scheduledDate;
@@ -34,6 +35,7 @@ class ServiceOrder {
     this.edgeType,
     this.measurements = const {},
     this.drawingUrl,
+    this.budgetUrl,
     this.totalValue = 0.0,
     required this.statusChangedAt,
     this.scheduledDate,
@@ -45,12 +47,12 @@ class ServiceOrder {
 
   // Helpers for time/delay logic
   bool get isDelayed {
-    if (status == OSStatus.entrega) return false;
+    if (status == OSStatus.entrega || status == OSStatus.entregue) return false;
     return daysStale > 5;
   }
 
   bool get isWarning {
-    if (status == OSStatus.entrega) return false;
+    if (status == OSStatus.entrega || status == OSStatus.entregue) return false;
     final stale = daysStale;
     return stale > 3 && stale <= 5;
   }
@@ -60,10 +62,12 @@ class ServiceOrder {
     return now.difference(statusChangedAt).inDays;
   }
 
-  /// OS entregue há 7+ dias: sai do Kanban mas permanece no banco/relatórios.
-  bool get isArchived =>
-      status == OSStatus.entrega &&
-      DateTime.now().difference(statusChangedAt).inDays >= 7;
+  /// OS "Entregue": sai do Kanban mas permanece no banco/relatórios.
+  bool get isArchived => status == OSStatus.entregue;
+
+  int get daysToDelivery {
+    return DateTime.now().difference(createdAt).inDays;
+  }
 
   String get statusLabel {
     return OSStatus.labels[status] ?? status;
@@ -85,6 +89,7 @@ class ServiceOrder {
     String? edgeType,
     Map<String, dynamic>? measurements,
     String? drawingUrl,
+    String? budgetUrl,
     double? totalValue,
     DateTime? statusChangedAt,
     DateTime? scheduledDate,
@@ -105,6 +110,7 @@ class ServiceOrder {
       edgeType: edgeType ?? this.edgeType,
       measurements: measurements ?? this.measurements,
       drawingUrl: drawingUrl ?? this.drawingUrl,
+      budgetUrl: budgetUrl ?? this.budgetUrl,
       totalValue: totalValue ?? this.totalValue,
       statusChangedAt: statusChangedAt ?? this.statusChangedAt,
       scheduledDate: scheduledDate ?? this.scheduledDate,
@@ -127,6 +133,7 @@ class ServiceOrder {
       'edge_type': edgeType,
       'measurements': measurements,
       'drawing_url': drawingUrl,
+      'budget_url': budgetUrl,
       'total_value': totalValue,
       'status_changed_at': statusChangedAt.toIso8601String(),
       'scheduled_date': scheduledDate?.toIso8601String().substring(0, 10), // date only
@@ -149,6 +156,7 @@ class ServiceOrder {
       edgeType: map['edge_type'] as String?,
       measurements: map['measurements'] as Map<String, dynamic>? ?? const {},
       drawingUrl: map['drawing_url'] as String?,
+      budgetUrl: map['budget_url'] as String?,
       totalValue: (map['total_value'] as num? ?? 0.0).toDouble(),
       statusChangedAt: map['status_changed_at'] != null 
           ? DateTime.parse(map['status_changed_at'] as String)
@@ -183,6 +191,7 @@ class ServiceOrder {
         other.edgeType == edgeType &&
         mapEquals(other.measurements, measurements) &&
         other.drawingUrl == drawingUrl &&
+        other.budgetUrl == budgetUrl &&
         other.totalValue == totalValue &&
         other.statusChangedAt == statusChangedAt &&
         other.scheduledDate == scheduledDate &&
@@ -206,6 +215,7 @@ class ServiceOrder {
       edgeType,
       Object.hashAll(measurements.entries.toList()..sort((a, b) => a.key.compareTo(b.key))),
       drawingUrl,
+      budgetUrl,
       totalValue,
       statusChangedAt,
       scheduledDate,

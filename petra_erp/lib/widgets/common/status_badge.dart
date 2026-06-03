@@ -17,12 +17,12 @@ class StatusBadge extends StatelessWidget {
     final (:color, :bg) = AppColors.statusColors(status);
     final fontSize  = small ? 9.5 : 11.0;
     final dotSize   = small ? 4.5 : 5.5;
-    final hPad      = small ? 6.0 : 8.0;
-    final vPad      = small ? 2.0 : 3.0;
+    final hPad      = small ? 8.0 : 11.0;
+    final vPad      = small ? 2.0 : 4.0;
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(AppTheme.radiusFull)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

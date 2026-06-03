@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
 
@@ -10,7 +11,8 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  ConsumerState<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
@@ -36,7 +38,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     });
 
     try {
-      await ref.read(authProvider.notifier).resetPassword(_emailController.text.trim());
+      await ref
+          .read(authProvider.notifier)
+          .resetPassword(_emailController.text.trim());
       if (!mounted) return;
       setState(() {
         _emailSent = true;
@@ -73,14 +77,15 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       body: Center(
         child: SingleChildScrollView(
           child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: cardWidth,
-            ),
+            constraints: BoxConstraints(maxWidth: cardWidth),
             child: Card(
               elevation: 4.0,
               color: AppColors.white,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 40.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32.0,
+                  vertical: 40.0,
+                ),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -94,24 +99,23 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                         color: AppColors.secondary,
                       ),
                       const SizedBox(height: 16.0),
-                      const Text(
+                      Text(
                         'RECUPERAR SENHA',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 18.0,
-                          fontWeight: FontWeight.bold,
+                        style: AppTheme.syne(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
                           color: AppColors.primary,
-                          letterSpacing: 1.0,
-                        ),
+                        ).copyWith(letterSpacing: 1.0),
                       ),
                       const SizedBox(height: 12.0),
                       Text(
-                        _emailSent 
-                            ? 'As instruções de recuperação foram enviadas para o e-mail informado.' 
+                        _emailSent
+                            ? 'As instruções de recuperação foram enviadas para o e-mail informado.'
                             : 'Insira seu e-mail cadastrado para receber o link de redefinição de senha.',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 14.0,
+                        style: AppTheme.jakarta(
+                          fontSize: 14,
                           color: AppColors.grey,
                         ),
                       ),
@@ -135,9 +139,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                         if (_errorMessage != null) ...[
                           Text(
                             _errorMessage!,
-                            style: const TextStyle(
+                            style: AppTheme.jakarta(
                               color: AppColors.error,
-                              fontSize: 13.0,
+                              fontSize: 13,
                             ),
                             textAlign: TextAlign.center,
                           ),

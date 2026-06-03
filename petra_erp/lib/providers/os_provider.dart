@@ -124,3 +124,52 @@ final allAssignmentsProvider = FutureProvider<List<OrderAssignment>>((ref) async
   final service = ref.watch(serviceOrderServiceProvider);
   return await service.getAllAssignments();
 });
+
+/// Etapa finalizada por um funcionário, aguardando o ADM liberar a OS para a
+/// próxima etapa. Derivado de order_assignments concluídos cuja OS ainda está
+/// parada na etapa do assignment.
+class PendingAdminAction {
+  final ServiceOrder order;
+  final String stage; // etapa concluída
+  final String employeeName;
+  final DateTime completedAt;
+
+  const PendingAdminAction({
+    required this.order,
+    required this.stage,
+    required this.employeeName,
+    required this.completedAt,
+  });
+}
+
+final pendingAdminActionsProvider = FutureProvider<List<PendingAdminAction>>((ref) async {
+  final client = ref.watch(supabaseClientProvider);
+
+  final rows = await client
+      .from('order_assignments')
+      .select('stage, completed_at, employee:profiles(name), '
+          'order:service_orders!order_assignments_order_id_fkey('
+          '*, customers(name), creator:profiles!service_orders_created_by_fkey(name))')
+      .not('completed_at', 'is', null)
+      .order('completed_at', ascending: false);
+
+  final result = <PendingAdminAction>[];
+  for (final r in (rows as List)) {
+    final orderMap = r['order'] as Map<String, dynamic>?;
+    if (orderMap == null) continue;
+    final stage = r['stage'] as String;
+    // Só interessa se a OS ainda está parada na etapa concluída (ninguém moveu).
+    if (orderMap['status'] != stage) continue;
+
+    final customerName = orderMap['customers'] != null
+        ? orderMap['customers']['name'] as String?
+        : null;
+    result.add(PendingAdminAction(
+      order: ServiceOrder.fromMap(orderMap, customerName: customerName),
+      stage: stage,
+      employeeName: (r['employee']?['name'] as String?) ?? 'Funcionário',
+      completedAt: DateTime.parse(r['completed_at'] as String),
+    ));
+  }
+  return result;
+});

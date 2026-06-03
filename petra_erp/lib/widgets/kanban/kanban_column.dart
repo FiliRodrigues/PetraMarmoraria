@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/os_status.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/utils/responsive.dart';
 import '../../models/models.dart';
 import '../../providers/os_provider.dart';
 import 'os_card.dart';
@@ -27,6 +29,7 @@ class KanbanColumn extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statusLabel = OSStatus.labels[status] ?? status;
+    final statusColor = AppColors.statusColors(status).color;
 
     return DragTarget<ServiceOrder>(
       onWillAcceptWithDetails: (details) {
@@ -48,62 +51,75 @@ class KanbanColumn extends ConsumerWidget {
       builder: (context, candidateData, rejectedData) {
         // Highlight background when a draggable item is hovered over
         final isHovered = candidateData.isNotEmpty;
-        final isDesktop = MediaQuery.of(context).size.width > 900;
 
         return Container(
-          width: flexible ? null : (isDesktop ? 300.0 : null),
+          width: flexible ? null : (context.isDesktop ? 300.0 : null),
           margin: const EdgeInsets.symmetric(horizontal: 5.0, vertical: 10.0),
           decoration: BoxDecoration(
-            color: isHovered 
-                ? AppColors.secondary.withValues(alpha: 0.08) 
-                : Colors.white.withValues(alpha: 0.4),
-            borderRadius: BorderRadius.circular(12.0),
+            color: isHovered
+                ? AppColors.secondary.withValues(alpha: 0.08)
+                : AppColors.neutral50,
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
             border: Border.all(
-              color: isHovered ? AppColors.secondary : Colors.transparent,
-              width: 1.5,
+              color: isHovered ? AppColors.secondary : AppColors.border,
+              width: isHovered ? 1.5 : 1.0,
             ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Column Header
+              // Column Header (claro, com ponto da etapa + contador em pill)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+                padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
                 decoration: const BoxDecoration(
-                  color: AppColors.primary,
+                  color: AppColors.surface,
                   borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(10.0),
-                    topRight: Radius.circular(10.0),
+                    topLeft: Radius.circular(AppTheme.radiusLg),
+                    topRight: Radius.circular(AppTheme.radiusLg),
+                  ),
+                  border: Border(
+                    bottom: BorderSide(color: AppColors.neutral200),
                   ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
-                      child: Text(
-                        statusLabel.toUpperCase(),
-                        style: const TextStyle(
-                          color: AppColors.background,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12.0,
-                          letterSpacing: 0.5,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 8, height: 8,
+                            decoration: BoxDecoration(
+                              color: statusColor, shape: BoxShape.circle),
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              statusLabel,
+                              style: AppTheme.syne(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+                      padding: const EdgeInsets.symmetric(horizontal: 9.0, vertical: 2.0),
                       decoration: BoxDecoration(
-                        color: AppColors.secondary,
-                        borderRadius: BorderRadius.circular(10.0),
+                        color: AppColors.neutral100,
+                        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                       ),
                       child: Text(
                         '${orders.length}',
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 11.0,
-                          fontWeight: FontWeight.bold,
+                        style: AppTheme.numeric(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ),

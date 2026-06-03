@@ -6,3 +6,7 @@ export 'service_order_service.dart';
 export 'profile_service.dart';
 export 'stock_service.dart';
 export 'payment_service.dart';
+export 'company_service.dart';
+export 'storage_service.dart';
+export 'worker_auth_service.dart';
+export 'biometric_auth_service.dart';

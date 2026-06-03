@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
+import '../../core/utils/error_messages.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
 import '../../core/constants/payment_constants.dart';
+import '../../core/constants/os_status.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/date_utils.dart';
 import '../../core/utils/whatsapp.dart';
+import '../../widgets/widgets.dart';
 import 'os_print_screen.dart';
 
 /// Container class to hold all data needed to render the Service Order Details.
@@ -28,7 +34,10 @@ class OSDetailData {
 }
 
 /// Provider that loads all necessary details for the OS Details screen.
-final osDetailDataProvider = FutureProvider.family<OSDetailData, String>((ref, id) async {
+final osDetailDataProvider = FutureProvider.family<OSDetailData, String>((
+  ref,
+  id,
+) async {
   final serviceOrderService = ref.watch(serviceOrderServiceProvider);
   final customerService = ref.watch(customerServiceProvider);
   final profileService = ref.watch(profileServiceProvider);
@@ -48,19 +57,25 @@ final osDetailDataProvider = FutureProvider.family<OSDetailData, String>((ref, i
   List<OrderAssignment> assignments = [];
   try {
     assignments = await serviceOrderService.getAssignments(id);
-  } catch (_) {}
+  } catch (e) {
+    debugPrint('[OSDetail] Erro ao carregar assignments: $e');
+  }
 
   // 4. Fetch Status History
   List<StatusHistory> history = [];
   try {
     history = await serviceOrderService.getStatusHistory(id);
-  } catch (_) {}
+  } catch (e) {
+    debugPrint('[OSDetail] Erro ao carregar histórico: $e');
+  }
 
   // 5. Fetch Profiles
   List<Profile> profiles = [];
   try {
     profiles = await profileService.getProfiles();
-  } catch (_) {}
+  } catch (e) {
+    debugPrint('[OSDetail] Erro ao carregar profiles: $e');
+  }
 
   return OSDetailData(
     order: order,
@@ -75,9 +90,48 @@ class OSDetailScreen extends ConsumerWidget {
   final String id;
   const OSDetailScreen({super.key, required this.id});
 
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final ok = await ConfirmDialog.show(
+      context,
+      title: 'Excluir Ordem de Serviço',
+      content:
+          'Tem certeza que deseja excluir esta OS? Esta ação não pode ser desfeita.',
+      confirmLabel: 'Excluir',
+      confirmColor: AppColors.error,
+    );
+    if (!ok) return;
+    try {
+      await ref.read(serviceOrderServiceProvider).deleteServiceOrder(id);
+      ref.invalidate(osProvider);
+      if (context.mounted) {
+        AppSnackbar.success(context, 'Ordem de serviço excluída.');
+        context.pop();
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppSnackbar.error(context, friendlyError(e));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final detailDataAsync = ref.watch(osDetailDataProvider(id));
+
+    // Pré-baixa APENAS o arquivo do desenho em background (só rede, não trava a
+    // UI). A geração pesada do PDF só ocorre ao clicar em Visualizar, já partindo
+    // do arquivo em cache.
+    void warmDrawing(AsyncValue<OSDetailData> v) {
+      final url = v.valueOrNull?.order.drawingUrl;
+      if (url != null && url.trim().isNotEmpty) {
+        ref.read(drawingBytesProvider(url).future).ignore();
+      }
+    }
+
+    ref.listen(osDetailDataProvider(id), (prev, next) => warmDrawing(next));
+    warmDrawing(detailDataAsync);
+
+    final isAdmin = ref.watch(currentProfileProvider).value?.isAdmin ?? false;
     final currencyFormat = NumberFormat.simpleCurrency(locale: 'pt_BR');
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
 
@@ -102,6 +156,12 @@ class OSDetailScreen extends ConsumerWidget {
             ),
             orElse: () => const SizedBox.shrink(),
           ),
+          if (isAdmin)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Excluir OS',
+              onPressed: () => _confirmDelete(context, ref),
+            ),
         ],
       ),
       backgroundColor: AppColors.background,
@@ -109,25 +169,31 @@ class OSDetailScreen extends ConsumerWidget {
         data: (data) {
           final order = data.order;
           final customer = data.customer;
-          
+
           // Parse measurements
           final List<Map<String, String>> measurementRows = [];
           final measurements = order.measurements;
-          if (measurements.containsKey('items') && measurements['items'] is List) {
+          if (measurements.containsKey('items') &&
+              measurements['items'] is List) {
             final list = measurements['items'] as List;
             for (final item in list) {
               if (item is Map) {
                 measurementRows.add({
                   'width': (item['width'] ?? item['largura'] ?? '-').toString(),
-                  'height': (item['height'] ?? item['altura'] ?? '-').toString(),
-                  'thickness': (item['thickness'] ?? item['espessura'] ?? '-').toString(),
-                  'format': (item['format'] ?? item['formato'] ?? '-').toString(),
-                  'details': (item['details'] ?? item['detalhes'] ?? '-').toString(),
+                  'height': (item['height'] ?? item['altura'] ?? '-')
+                      .toString(),
+                  'thickness': (item['thickness'] ?? item['espessura'] ?? '-')
+                      .toString(),
+                  'format': (item['format'] ?? item['formato'] ?? '-')
+                      .toString(),
+                  'details': (item['details'] ?? item['detalhes'] ?? '-')
+                      .toString(),
                 });
               }
             }
           } else {
-            final hasKeys = measurements.containsKey('width') ||
+            final hasKeys =
+                measurements.containsKey('width') ||
                 measurements.containsKey('largura') ||
                 measurements.containsKey('height') ||
                 measurements.containsKey('altura') ||
@@ -135,11 +201,23 @@ class OSDetailScreen extends ConsumerWidget {
                 measurements.containsKey('espessura');
             if (hasKeys) {
               measurementRows.add({
-                'width': (measurements['width'] ?? measurements['largura'] ?? '-').toString(),
-                'height': (measurements['height'] ?? measurements['altura'] ?? '-').toString(),
-                'thickness': (measurements['thickness'] ?? measurements['espessura'] ?? '-').toString(),
-                'format': (measurements['format'] ?? measurements['formato'] ?? '-').toString(),
-                'details': (measurements['details'] ?? measurements['detalhes'] ?? '-').toString(),
+                'width':
+                    (measurements['width'] ?? measurements['largura'] ?? '-')
+                        .toString(),
+                'height':
+                    (measurements['height'] ?? measurements['altura'] ?? '-')
+                        .toString(),
+                'thickness':
+                    (measurements['thickness'] ??
+                            measurements['espessura'] ??
+                            '-')
+                        .toString(),
+                'format':
+                    (measurements['format'] ?? measurements['formato'] ?? '-')
+                        .toString(),
+                'details':
+                    (measurements['details'] ?? measurements['detalhes'] ?? '-')
+                        .toString(),
               });
             }
           }
@@ -168,7 +246,12 @@ class OSDetailScreen extends ConsumerWidget {
           } else if (order.createdBy != null) {
             final creator = data.profiles.firstWhere(
               (p) => p.id == order.createdBy,
-              orElse: () => Profile(id: '', email: '', name: '', createdAt: DateTime(1970, 1, 1)),
+              orElse: () => Profile(
+                id: '',
+                email: '',
+                name: '',
+                createdAt: DateTime(1970, 1, 1),
+              ),
             );
             if (creator.name.isNotEmpty) vendedor = creator.name;
           }
@@ -186,7 +269,8 @@ class OSDetailScreen extends ConsumerWidget {
                 createdAt: DateTime(1970, 1, 1),
               ),
             );
-            if (creatorProfile.name.isNotEmpty && creatorProfile.role.toLowerCase() == 'vendedor') {
+            if (creatorProfile.name.isNotEmpty &&
+                creatorProfile.role.toLowerCase() == 'vendedor') {
               vendedor = creatorProfile.name;
             } else if (firstEntry.changedByName != null) {
               vendedor = firstEntry.changedByName!;
@@ -208,6 +292,14 @@ class OSDetailScreen extends ConsumerWidget {
             }
           }
 
+          final phone2 = customer?.phone2?.trim() ?? '';
+          final hasPhone2 = phone2.isNotEmpty;
+          final city = customer?.city?.trim() ?? '';
+          final uf = customer?.state.trim() ?? '';
+          final cidadeUf = (city.isEmpty && uf.isEmpty)
+              ? '-'
+              : '${city.isEmpty ? "-" : city} / ${uf.isEmpty ? "-" : uf}';
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -216,24 +308,28 @@ class OSDetailScreen extends ConsumerWidget {
                 // Summary Header Card
                 Card(
                   elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  ),
                   child: Container(
                     decoration: const BoxDecoration(
+                      borderRadius: BorderRadius.all(Radius.circular(14)),
                       border: Border(
                         left: BorderSide(color: AppColors.secondary, width: 4),
                       ),
                     ),
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(20.0),
                     child: Column(
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'Ordem de Serviço ${order.formattedNumber}',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
+                              style: AppTheme.syne(
+                                fontSize: 21,
+                                fontWeight: FontWeight.w700,
                                 color: AppColors.primary,
                               ),
                             ),
@@ -243,14 +339,18 @@ class OSDetailScreen extends ConsumerWidget {
                                 vertical: 6,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.secondary.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(16),
+                                color: AppColors.secondary.withValues(
+                                  alpha: 0.15,
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusXl,
+                                ),
                                 border: Border.all(color: AppColors.secondary),
                               ),
                               child: Text(
                                 order.statusLabel.toUpperCase(),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                                style: AppTheme.jakarta(
+                                  fontWeight: FontWeight.w700,
                                   color: AppColors.primary,
                                   fontSize: 12,
                                 ),
@@ -258,32 +358,45 @@ class OSDetailScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
-                        const Divider(height: 24),
+                        const SizedBox(height: 18),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: AppColors.border,
+                        ),
+                        const SizedBox(height: 16),
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('Criada em', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                                const SizedBox(height: 4),
-                                Text(dateFormat.format(order.createdAt), style: const TextStyle(fontWeight: FontWeight.w600)),
-                              ],
+                            Expanded(
+                              child: _buildDetailRow(
+                                'Criada em',
+                                dateFormat.format(order.createdAt),
+                              ),
                             ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                const Text('Valor Total', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                                const SizedBox(height: 4),
-                                Text(
-                                  currencyFormat.format(order.totalValue),
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.primary,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    'VALOR TOTAL',
+                                    style: AppTheme.jakarta(
+                                      color: AppColors.textMuted,
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w600,
+                                    ).copyWith(letterSpacing: 0.3),
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    currencyFormat.format(order.totalValue),
+                                    style: AppTheme.numeric(
+                                      fontSize: 19,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
@@ -291,189 +404,324 @@ class OSDetailScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
                 // Customer Details Card
                 _buildSectionHeader('DADOS DO CLIENTE', Icons.person),
                 Card(
                   elevation: 1,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  ),
                   child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(18.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildDetailRow('Nome', customer?.name ?? order.customerName ?? 'Não informado'),
-                        const SizedBox(height: 12),
-                        _buildDetailRow('Telefone', customer?.phone ?? 'Não informado'),
-                        if (customer?.phone2 != null) ...[
-                          const SizedBox(height: 12),
-                          _buildDetailRow('Telefone 2', customer!.phone2!),
-                        ],
-                        const SizedBox(height: 12),
-                        _buildDetailRow('Endereço', customer?.address ?? 'Não informado'),
-                        if (customer?.city != null || customer?.state != null) ...[
-                          const SizedBox(height: 12),
-                          _buildDetailRow('Cidade/UF', '${customer?.city ?? "-"} / ${customer?.state ?? "-"}'),
+                        _buildDetailRow(
+                          'Nome',
+                          customer?.name ??
+                              order.customerName ??
+                              'Não informado',
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _buildDetailRow(
+                                'Telefone',
+                                customer?.phone ?? 'Não informado',
+                              ),
+                            ),
+                            if (hasPhone2)
+                              Expanded(
+                                child: _buildDetailRow('Telefone 2', phone2),
+                              )
+                            else
+                              Expanded(
+                                child: _buildDetailRow('Cidade/UF', cidadeUf),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _buildDetailRow(
+                          'Endereço',
+                          customer?.address ?? 'Não informado',
+                        ),
+                        if (hasPhone2 && cidadeUf != '-') ...[
+                          const SizedBox(height: 16),
+                          _buildDetailRow('Cidade/UF', cidadeUf),
                         ],
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
                 // Service Specifications Card
                 _buildSectionHeader('ESPECIFICAÇÕES DO SERVIÇO', Icons.build),
                 Card(
                   elevation: 1,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  ),
                   child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(18.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(child: _buildDetailRow('Material', order.material ?? 'Não informado')),
-                            Expanded(child: _buildDetailRow('Acabamento', order.edgeType ?? 'Não informado')),
+                            Expanded(
+                              child: _buildDetailRow(
+                                'Material',
+                                order.material ?? 'Não informado',
+                              ),
+                            ),
+                            Expanded(
+                              child: _buildDetailRow(
+                                'Acabamento',
+                                order.edgeType ?? 'Não informado',
+                              ),
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Descrição / Observações:',
-                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12),
+                        const SizedBox(height: 16),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: AppColors.border,
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 14),
                         Text(
-                          order.description.isNotEmpty ? order.description : 'Nenhuma observação cadastrada.',
-                          style: const TextStyle(fontSize: 14),
+                          'DESCRIÇÃO / OBSERVAÇÕES',
+                          style: AppTheme.jakarta(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textMuted,
+                            fontSize: 10.5,
+                          ).copyWith(letterSpacing: 0.3),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          order.description.isNotEmpty
+                              ? order.description
+                              : 'Nenhuma observação cadastrada.',
+                          style:
+                              AppTheme.jakarta(
+                                fontSize: 14,
+                                color: order.description.isNotEmpty
+                                    ? AppColors.textPrimary
+                                    : AppColors.textMuted,
+                              ).copyWith(
+                                height: 1.4,
+                                fontStyle: order.description.isNotEmpty
+                                    ? FontStyle.normal
+                                    : FontStyle.italic,
+                              ),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
                 // Measurements Card
                 _buildSectionHeader('MEDIÇÕES', Icons.straighten),
                 Card(
                   elevation: 1,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(12.0),
                     child: measurementRows.isEmpty
-                        ? const Center(
+                        ? Center(
                             child: Padding(
                               padding: EdgeInsets.all(16.0),
-                              child: Text('Nenhuma medição cadastrada.', style: TextStyle(color: Colors.grey)),
+                              child: Text(
+                                'Nenhuma medição cadastrada.',
+                                style: AppTheme.jakarta(color: AppColors.grey),
+                              ),
                             ),
                           )
                         : SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: DataTable(
                               columnSpacing: 20,
-                              columns: const [
-                                DataColumn(label: Text('Largura (m)', style: TextStyle(fontWeight: FontWeight.bold))),
-                                DataColumn(label: Text('Altura (m)', style: TextStyle(fontWeight: FontWeight.bold))),
-                                DataColumn(label: Text('Espessura (cm)', style: TextStyle(fontWeight: FontWeight.bold))),
-                                DataColumn(label: Text('Formato', style: TextStyle(fontWeight: FontWeight.bold))),
-                                DataColumn(label: Text('Detalhes', style: TextStyle(fontWeight: FontWeight.bold))),
+                              columns: [
+                                DataColumn(
+                                  label: Text(
+                                    'Largura (m)',
+                                    style: AppTheme.jakarta(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'Altura (m)',
+                                    style: AppTheme.jakarta(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'Espessura (cm)',
+                                    style: AppTheme.jakarta(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'Formato',
+                                    style: AppTheme.jakarta(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'Detalhes',
+                                    style: AppTheme.jakarta(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
                               ],
                               rows: measurementRows.map((row) {
-                                return DataRow(cells: [
-                                  DataCell(Text(row['width'] ?? '-')),
-                                  DataCell(Text(row['height'] ?? '-')),
-                                  DataCell(Text(row['thickness'] ?? '-')),
-                                  DataCell(Text(row['format'] ?? '-')),
-                                  DataCell(Text(row['details'] ?? '-')),
-                                ]);
+                                return DataRow(
+                                  cells: [
+                                    DataCell(Text(row['width'] ?? '-')),
+                                    DataCell(Text(row['height'] ?? '-')),
+                                    DataCell(Text(row['thickness'] ?? '-')),
+                                    DataCell(Text(row['format'] ?? '-')),
+                                    DataCell(Text(row['details'] ?? '-')),
+                                  ],
+                                );
                               }).toList(),
                             ),
                           ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
                 // Drawing/Sketch Card
                 _buildSectionHeader('DESENHO / ESBOÇO', Icons.image),
                 Card(
                   elevation: 1,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: order.drawingUrl != null && order.drawingUrl!.trim().isNotEmpty
-                        ? Container(
-                            height: 200,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[50],
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: Colors.grey[300]!),
-                            ),
-                            child: Image.network(
-                              order.drawingUrl!,
-                              fit: BoxFit.contain,
-                              loadingBuilder: (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return const Center(child: CircularProgressIndicator());
-                              },
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.broken_image, color: Colors.grey, size: 48),
-                                      SizedBox(height: 8),
-                                      Text('Erro ao carregar imagem do desenho', style: TextStyle(color: Colors.grey)),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-                          )
-                        : Container(
-                            height: 100,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[50],
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: Colors.grey[300]!, style: BorderStyle.none),
-                            ),
-                            alignment: Alignment.center,
-                            child: const Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.architecture, color: Colors.grey, size: 36),
-                                SizedBox(height: 8),
-                                Text('Nenhum desenho ou esboço anexado', style: TextStyle(color: Colors.grey)),
-                              ],
-                            ),
+                    child:
+                        order.drawingUrl != null &&
+                            order.drawingUrl!.trim().isNotEmpty
+                        ? _buildAttachmentPreview(order.drawingUrl!)
+                        : _buildEmptyAttachment(
+                            Icons.architecture,
+                            'Nenhum desenho ou esboço anexado',
                           ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
+
+                // Budget Card
+                _buildSectionHeader('ORÇAMENTO', Icons.attach_money),
+                Card(
+                  elevation: 1,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child:
+                        order.budgetUrl != null &&
+                            order.budgetUrl!.trim().isNotEmpty
+                        ? _buildAttachmentPreview(order.budgetUrl!)
+                        : _buildEmptyAttachment(
+                            Icons.description,
+                            'Nenhum orçamento anexado',
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 20),
 
                 // Team Assignments Card
                 _buildSectionHeader('EQUIPE RESPONSÁVEL', Icons.people),
                 Card(
                   elevation: 1,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  ),
                   child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(18.0),
                     child: Column(
                       children: [
                         _buildTeamRow('Vendedor', vendedor, Icons.badge),
-                        const Divider(height: 24),
+                        const Divider(
+                          height: 26,
+                          thickness: 1,
+                          color: AppColors.border,
+                        ),
                         _buildTeamRow('Cortador', cortador, Icons.content_cut),
-                        const Divider(height: 24),
+                        const Divider(
+                          height: 26,
+                          thickness: 1,
+                          color: AppColors.border,
+                        ),
                         _buildTeamRow('Montador', montador, Icons.construction),
-                        const Divider(height: 24),
-                        _buildTeamRow('Entregador', entregador, Icons.local_shipping),
+                        const Divider(
+                          height: 26,
+                          thickness: 1,
+                          color: AppColors.border,
+                        ),
+                        _buildTeamRow(
+                          'Entregador',
+                          entregador,
+                          Icons.local_shipping,
+                        ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
+
+                // Histórico de Movimentação
+                _buildSectionHeader(
+                  'HISTÓRICO DE MOVIMENTAÇÃO',
+                  Icons.timeline,
+                ),
+                Card(
+                  elevation: 1,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(18.0),
+                    child: data.history.isEmpty
+                        ? Text(
+                            'Nenhuma movimentação registrada.',
+                            style: AppTheme.jakarta(color: AppColors.textMuted),
+                          )
+                        : Column(
+                            children: [
+                              ...data.history.map((h) => _buildHistoryRow(h)),
+                            ],
+                          ),
+                  ),
+                ),
+                if (data.history.isNotEmpty &&
+                    (order.status == OSStatus.entrega ||
+                        order.status == OSStatus.entregue)) ...[
+                  const SizedBox(height: 8),
+                  _buildDeliverySummary(data.history, order),
+                ],
+                const SizedBox(height: 20),
 
                 // Financeiro
                 _buildSectionHeader('FINANCEIRO', Icons.payments),
@@ -492,10 +740,18 @@ class OSDetailScreen extends ConsumerWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.secondary,
                       foregroundColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                      ),
                     ),
                     icon: const Icon(Icons.print),
-                    label: const Text('Visualizar e Imprimir OS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    label: Text(
+                      'Visualizar e Imprimir OS',
+                      style: AppTheme.syne(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
@@ -529,9 +785,9 @@ class OSDetailScreen extends ConsumerWidget {
                 const Icon(Icons.error_outline, color: Colors.red, size: 60),
                 const SizedBox(height: 16),
                 Text(
-                  'Erro ao carregar detalhes:\n$err',
+                  friendlyError(err),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 16),
+                  style: AppTheme.jakarta(fontSize: 16),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
@@ -546,20 +802,137 @@ class OSDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSectionHeader(String title, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
-      child: Row(
+  Widget _buildAttachmentPreview(String url) {
+    final isPdf = url.toLowerCase().endsWith('.pdf');
+    if (isPdf) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.picture_as_pdf, size: 28, color: AppColors.error),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                url.split('/').last,
+                style: AppTheme.jakarta(fontSize: 13),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            TextButton(
+              onPressed: () => launchUrl(Uri.parse(url)),
+              child: const Text('Abrir'),
+            ),
+          ],
+        ),
+      );
+    }
+    return Container(
+      height: 200,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Image.network(
+        url,
+        fit: BoxFit.contain,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return const Center(child: CircularProgressIndicator());
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.broken_image, color: Colors.grey, size: 48),
+                SizedBox(height: 8),
+                Text(
+                  'Erro ao carregar imagem',
+                  style: AppTheme.jakarta(color: AppColors.grey),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyAttachment(IconData icon, String label) {
+    return Container(
+      height: 96,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        border: Border.all(color: AppColors.border),
+      ),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 18, color: AppColors.secondary),
-          const SizedBox(width: 8),
+          Icon(icon, color: AppColors.textMuted, size: 30),
+          const SizedBox(height: 8),
           Text(
-            title,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-              letterSpacing: 0.5,
+            label,
+            style: AppTheme.jakarta(color: AppColors.textMuted, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryRow(StatusHistory h) {
+    final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+    final statusLabel = OSStatus.labels[h.toStatus] ?? h.toStatus;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 2),
+            width: 10,
+            height: 10,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.secondary,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  statusLabel,
+                  style: AppTheme.jakarta(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${dateFormat.format(h.changedAt)}${h.changedByName != null ? ' • ${h.changedByName}' : ''}',
+                  style: AppTheme.jakarta(color: AppColors.grey, fontSize: 11),
+                ),
+                if (h.notes != null && h.notes!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    h.notes!,
+                    style: AppTheme.jakarta(
+                      fontSize: 12,
+                    ).copyWith(fontStyle: FontStyle.italic),
+                  ),
+                ],
+              ],
             ),
           ),
         ],
@@ -567,50 +940,152 @@ class OSDetailScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildDeliverySummary(
+    List<StatusHistory> history,
+    ServiceOrder order,
+  ) {
+    if (history.isEmpty) return const SizedBox.shrink();
+    final sorted = List<StatusHistory>.from(history)
+      ..sort((a, b) => a.changedAt.compareTo(b.changedAt));
+    final first = sorted.first;
+    final last = sorted.last;
+    final totalDays = last.changedAt.difference(first.changedAt).inDays;
+
+    return Card(
+      elevation: 1,
+      color: AppColors.secondary.withValues(alpha: 0.08),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.hourglass_bottom,
+              color: AppColors.secondary,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Tempo total: $totalDays ${totalDays == 1 ? 'dia' : 'dias'}',
+                  style: AppTheme.syne(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Orçamento → ${OSStatus.labels[last.toStatus] ?? last.toStatus}',
+                  style: AppTheme.jakarta(fontSize: 12, color: AppColors.grey),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 2.0, bottom: 10.0, top: 4.0),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            ),
+            child: Icon(icon, size: 15, color: AppColors.accent),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            title,
+            style: AppTheme.syne(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ).copyWith(letterSpacing: 0.4),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Campo label (muted) em cima e valor (primary) abaixo, alinhado à esquerda.
   Widget _buildDetailRow(String label, String value) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          label,
-          style: const TextStyle(
-            color: Colors.grey,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
+          label.toUpperCase(),
+          style: AppTheme.jakarta(
+            color: AppColors.textMuted,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+          ).copyWith(letterSpacing: 0.3),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 3),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: AppColors.primary,
-          ),
+          style: AppTheme.jakarta(
+            fontSize: 14.5,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ).copyWith(height: 1.25),
         ),
       ],
     );
   }
 
   Widget _buildTeamRow(String role, String name, IconData icon) {
+    final assigned = name != 'Não atribuído';
     return Row(
       children: [
-        Icon(icon, color: AppColors.secondary, size: 20),
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: AppColors.accent.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          ),
+          child: Icon(icon, color: AppColors.accent, size: 18),
+        ),
         const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(role, style: const TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 2),
-            Text(
-              name,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                color: AppColors.primary,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                role.toUpperCase(),
+                style: AppTheme.jakarta(
+                  color: AppColors.textMuted,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                ).copyWith(letterSpacing: 0.3),
               ),
-            ),
-          ],
+              const SizedBox(height: 2),
+              Text(
+                name,
+                style:
+                    AppTheme.jakarta(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: assigned
+                          ? AppColors.textPrimary
+                          : AppColors.textMuted,
+                    ).copyWith(
+                      fontStyle: assigned ? FontStyle.normal : FontStyle.italic,
+                    ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -637,18 +1112,30 @@ class _WhatsAppButton extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: hasPhone ? _whatsappGreen : Colors.grey.shade400,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          ),
         ),
         icon: const Icon(LucideIcons.messageCircle),
-        label: const Text('Avisar cliente (WhatsApp)',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        label: Text(
+          'Avisar cliente (WhatsApp)',
+          style: AppTheme.syne(
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
+            color: Colors.white,
+          ),
+        ),
         onPressed: hasPhone
             ? () async {
-                final message = WhatsApp.messageForOrder(order, customerName: customer?.name);
+                final message = WhatsApp.messageForOrder(
+                  order,
+                  customerName: customer?.name,
+                );
                 final ok = await WhatsApp.open(phone: phone, message: message);
                 if (!ok && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Não foi possível abrir o WhatsApp.')),
+                  AppSnackbar.warning(
+                    context,
+                    'Não foi possível abrir o WhatsApp.',
                   );
                 }
               }
@@ -677,15 +1164,22 @@ class _FinanceSection extends ConsumerWidget {
 
     return Card(
       elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: paymentsAsync.when(
           loading: () => const Center(
-            child: Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator()),
+            child: Padding(
+              padding: EdgeInsets.all(8),
+              child: CircularProgressIndicator(),
+            ),
           ),
-          error: (err, _) => Text('Erro ao carregar pagamentos: $err',
-              style: const TextStyle(color: Colors.red)),
+          error: (err, _) => Text(
+            friendlyError(err),
+            style: AppTheme.jakarta(color: AppColors.error),
+          ),
           data: (payments) {
             final pago = payments
                 .where((p) => p.isPaid)
@@ -698,18 +1192,33 @@ class _FinanceSection extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _financeStat('Total', currencyFormat.format(order.totalValue), AppColors.primary),
-                    _financeStat('Pago', currencyFormat.format(pago), const Color(0xFF1A7A5E)),
-                    _financeStat('Saldo', currencyFormat.format(saldo),
-                        saldo > 0 ? const Color(0xFFC0392B) : const Color(0xFF1A7A5E)),
+                    _financeStat(
+                      'Total',
+                      currencyFormat.format(order.totalValue),
+                      AppColors.primary,
+                    ),
+                    _financeStat(
+                      'Pago',
+                      currencyFormat.format(pago),
+                      const Color(0xFF1A7A5E),
+                    ),
+                    _financeStat(
+                      'Saldo',
+                      currencyFormat.format(saldo),
+                      saldo > 0
+                          ? const Color(0xFFC0392B)
+                          : const Color(0xFF1A7A5E),
+                    ),
                   ],
                 ),
                 const Divider(height: 24),
                 if (payments.isEmpty)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text('Nenhum pagamento registrado.',
-                        style: TextStyle(color: Colors.grey)),
+                    child: Text(
+                      'Nenhum pagamento registrado.',
+                      style: AppTheme.jakarta(color: AppColors.grey),
+                    ),
                   )
                 else
                   ...payments.map((p) => _PaymentRow(payment: p)),
@@ -751,9 +1260,23 @@ class _FinanceSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
+        Text(
+          label,
+          style: AppTheme.jakarta(
+            color: AppColors.grey,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         const SizedBox(height: 4),
-        Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color)),
+        Text(
+          value,
+          style: AppTheme.numeric(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: color,
+          ),
+        ),
       ],
     );
   }
@@ -776,8 +1299,11 @@ class _PaymentRow extends ConsumerWidget {
       child: Row(
         children: [
           Icon(
-            payment.isPaid ? LucideIcons.checkCircle : (overdue ? LucideIcons.alertTriangle : LucideIcons.clock),
-            size: 16, color: color,
+            payment.isPaid
+                ? LucideIcons.checkCircle
+                : (overdue ? LucideIcons.alertTriangle : LucideIcons.clock),
+            size: 16,
+            color: color,
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -786,21 +1312,33 @@ class _PaymentRow extends ConsumerWidget {
               children: [
                 Text(
                   '${PaymentConstants.methodLabel(payment.method)} · ${PaymentConstants.statusLabel(payment.status)}',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  style: AppTheme.jakarta(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 Text(
                   payment.notes ??
-                      (payment.dueDate != null ? 'Venc. ${AppDateUtils.formatDate(payment.dueDate)}' : '—'),
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      (payment.dueDate != null
+                          ? 'Venc. ${AppDateUtils.formatDate(payment.dueDate)}'
+                          : '—'),
+                  style: AppTheme.jakarta(fontSize: 11, color: AppColors.grey),
                 ),
               ],
             ),
           ),
-          Text(currencyFormat.format(payment.amount),
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+          Text(
+            currencyFormat.format(payment.amount),
+            style: AppTheme.numeric(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
           if (!payment.isPaid)
             TextButton(
-              onPressed: () => ref.read(paymentProvider.notifier).markPaid(payment),
+              onPressed: () =>
+                  ref.read(paymentProvider.notifier).markPaid(payment),
               child: const Text('Marcar pago'),
             ),
         ],
@@ -814,10 +1352,12 @@ class _RegisterPaymentDialog extends ConsumerStatefulWidget {
   const _RegisterPaymentDialog({required this.order});
 
   @override
-  ConsumerState<_RegisterPaymentDialog> createState() => _RegisterPaymentDialogState();
+  ConsumerState<_RegisterPaymentDialog> createState() =>
+      _RegisterPaymentDialogState();
 }
 
-class _RegisterPaymentDialogState extends ConsumerState<_RegisterPaymentDialog> {
+class _RegisterPaymentDialogState
+    extends ConsumerState<_RegisterPaymentDialog> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _notesController = TextEditingController();
@@ -839,9 +1379,12 @@ class _RegisterPaymentDialogState extends ConsumerState<_RegisterPaymentDialog> 
       _saving = true;
       _error = null;
     });
-    final amount = double.tryParse(_amountController.text.replaceAll(',', '.')) ?? 0;
+    final amount =
+        double.tryParse(_amountController.text.replaceAll(',', '.')) ?? 0;
     try {
-      await ref.read(paymentProvider.notifier).create(
+      await ref
+          .read(paymentProvider.notifier)
+          .create(
             Payment(
               id: '',
               orderId: widget.order.id,
@@ -849,14 +1392,16 @@ class _RegisterPaymentDialogState extends ConsumerState<_RegisterPaymentDialog> 
               method: _method,
               status: PaymentConstants.pendente,
               dueDate: _dueDate,
-              notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+              notes: _notesController.text.trim().isEmpty
+                  ? null
+                  : _notesController.text.trim(),
               createdAt: DateTime.now(),
             ),
           );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'Erro ao registrar: $e');
+      setState(() => _error = friendlyError(e));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -873,16 +1418,20 @@ class _RegisterPaymentDialogState extends ConsumerState<_RegisterPaymentDialog> 
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (_error != null) ...[
-              Text(_error!, style: const TextStyle(color: AppColors.error)),
+              Text(_error!, style: AppTheme.jakarta(color: AppColors.error)),
               const SizedBox(height: 12),
             ],
             TextFormField(
               controller: _amountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(labelText: 'Valor'),
               validator: (v) {
                 final parsed = double.tryParse((v ?? '').replaceAll(',', '.'));
-                if (parsed == null || parsed <= 0) return 'Informe um valor maior que zero';
+                if (parsed == null || parsed <= 0) {
+                  return 'Informe um valor maior que zero';
+                }
                 return null;
               },
             ),
@@ -891,17 +1440,25 @@ class _RegisterPaymentDialogState extends ConsumerState<_RegisterPaymentDialog> 
               initialValue: _method,
               decoration: const InputDecoration(labelText: 'Método'),
               items: PaymentConstants.methods
-                  .map((m) => DropdownMenuItem(value: m, child: Text(PaymentConstants.methodLabel(m))))
+                  .map(
+                    (m) => DropdownMenuItem(
+                      value: m,
+                      child: Text(PaymentConstants.methodLabel(m)),
+                    ),
+                  )
                   .toList(),
-              onChanged: (v) => setState(() => _method = v ?? PaymentConstants.dinheiro),
+              onChanged: (v) =>
+                  setState(() => _method = v ?? PaymentConstants.dinheiro),
             ),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
-                  child: Text(_dueDate == null
-                      ? 'Sem vencimento'
-                      : 'Vencimento: ${AppDateUtils.formatDate(_dueDate)}'),
+                  child: Text(
+                    _dueDate == null
+                        ? 'Sem vencimento'
+                        : 'Vencimento: ${AppDateUtils.formatDate(_dueDate)}',
+                  ),
                 ),
                 TextButton(
                   onPressed: () async {
@@ -933,7 +1490,11 @@ class _RegisterPaymentDialogState extends ConsumerState<_RegisterPaymentDialog> 
         ElevatedButton(
           onPressed: _saving ? null : _save,
           child: _saving
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text('Registrar'),
         ),
       ],
@@ -946,7 +1507,8 @@ class _InstallmentsDialog extends ConsumerStatefulWidget {
   const _InstallmentsDialog({required this.order});
 
   @override
-  ConsumerState<_InstallmentsDialog> createState() => _InstallmentsDialogState();
+  ConsumerState<_InstallmentsDialog> createState() =>
+      _InstallmentsDialogState();
 }
 
 class _InstallmentsDialogState extends ConsumerState<_InstallmentsDialog> {
@@ -971,7 +1533,9 @@ class _InstallmentsDialogState extends ConsumerState<_InstallmentsDialog> {
     });
     final count = int.tryParse(_countController.text) ?? 0;
     try {
-      await ref.read(paymentProvider.notifier).createInstallments(
+      await ref
+          .read(paymentProvider.notifier)
+          .createInstallments(
             orderId: widget.order.id,
             totalAmount: widget.order.totalValue,
             count: count,
@@ -981,7 +1545,7 @@ class _InstallmentsDialogState extends ConsumerState<_InstallmentsDialog> {
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'Erro ao gerar parcelas: $e');
+      setState(() => _error = friendlyError(e));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -999,19 +1563,25 @@ class _InstallmentsDialogState extends ConsumerState<_InstallmentsDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (_error != null) ...[
-              Text(_error!, style: const TextStyle(color: AppColors.error)),
+              Text(_error!, style: AppTheme.jakarta(color: AppColors.error)),
               const SizedBox(height: 12),
             ],
-            Text('Total da OS: ${currencyFormat.format(widget.order.totalValue)}',
-                style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text(
+              'Total da OS: ${currencyFormat.format(widget.order.totalValue)}',
+              style: AppTheme.jakarta(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _countController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Número de parcelas'),
+              decoration: const InputDecoration(
+                labelText: 'Número de parcelas',
+              ),
               validator: (v) {
                 final parsed = int.tryParse(v ?? '');
-                if (parsed == null || parsed < 1) return 'Informe ao menos 1 parcela';
+                if (parsed == null || parsed < 1) {
+                  return 'Informe ao menos 1 parcela';
+                }
                 return null;
               },
             ),
@@ -1020,14 +1590,24 @@ class _InstallmentsDialogState extends ConsumerState<_InstallmentsDialog> {
               initialValue: _method,
               decoration: const InputDecoration(labelText: 'Método'),
               items: PaymentConstants.methods
-                  .map((m) => DropdownMenuItem(value: m, child: Text(PaymentConstants.methodLabel(m))))
+                  .map(
+                    (m) => DropdownMenuItem(
+                      value: m,
+                      child: Text(PaymentConstants.methodLabel(m)),
+                    ),
+                  )
                   .toList(),
-              onChanged: (v) => setState(() => _method = v ?? PaymentConstants.dinheiro),
+              onChanged: (v) =>
+                  setState(() => _method = v ?? PaymentConstants.dinheiro),
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: Text('1º vencimento: ${AppDateUtils.formatDate(_firstDueDate)}')),
+                Expanded(
+                  child: Text(
+                    '1º vencimento: ${AppDateUtils.formatDate(_firstDueDate)}',
+                  ),
+                ),
                 TextButton(
                   onPressed: () async {
                     final picked = await showDatePicker(
@@ -1053,7 +1633,11 @@ class _InstallmentsDialogState extends ConsumerState<_InstallmentsDialog> {
         ElevatedButton(
           onPressed: _saving ? null : _save,
           child: _saving
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text('Gerar'),
         ),
       ],

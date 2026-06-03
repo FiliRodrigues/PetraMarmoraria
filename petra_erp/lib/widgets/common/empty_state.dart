@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
+import 'app_button.dart';
 
 /// A reusable empty state widget to show when list or board data is not available.
 class EmptyState extends StatelessWidget {
@@ -22,46 +24,47 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(28.0),
         child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 64.0,
-            color: AppColors.grey.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 16.0),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18.0,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64.0,
+              height: 64.0,
+              decoration: const BoxDecoration(
+                color: AppColors.neutral100,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 28.0, color: AppColors.textMuted),
             ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8.0),
-          Text(
-            message,
-            style: const TextStyle(
-              fontSize: 14.0,
-              color: AppColors.grey,
+            const SizedBox(height: 16.0),
+            Text(
+              title,
+              style: AppTheme.syne(fontSize: 17, fontWeight: FontWeight.w800),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
-          if (actionLabel != null && onActionPressed != null) ...[
-            const SizedBox(height: 24.0),
-            ElevatedButton(
-              onPressed: onActionPressed,
-              child: Text(actionLabel!),
+            const SizedBox(height: 6.0),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 300),
+              child: Text(
+                message,
+                style: AppTheme.jakarta(fontSize: 13, color: AppColors.textMuted),
+                textAlign: TextAlign.center,
+              ),
             ),
+            if (actionLabel != null && onActionPressed != null) ...[
+              const SizedBox(height: 18.0),
+              AppButton(
+                label: actionLabel!,
+                size: AppButtonSize.sm,
+                onPressed: onActionPressed,
+              ),
+            ],
           ],
-        ],
+        ),
       ),
-    ),
-  );
+    );
   }
 }

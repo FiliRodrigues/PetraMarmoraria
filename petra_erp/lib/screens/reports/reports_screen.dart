@@ -1,11 +1,13 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import '../../core/utils/error_messages.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/constants/os_status.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/responsive.dart';
 import '../../models/models.dart';
 import '../../providers/os_provider.dart';
 import '../../core/utils/formatters.dart';
@@ -62,7 +64,7 @@ List<MonthVolume> computeMonthlyVolume(List<ServiceOrder> orders) {
     final cKey = DateTime(o.createdAt.year, o.createdAt.month, 1);
     if (created.containsKey(cKey)) created[cKey] = created[cKey]! + 1;
 
-    if (o.status == OSStatus.entrega) {
+    if (o.status == OSStatus.entregue) {
       final dKey = DateTime(o.statusChangedAt.year, o.statusChangedAt.month, 1);
       if (delivered.containsKey(dKey)) delivered[dKey] = delivered[dKey]! + 1;
     }
@@ -96,6 +98,9 @@ class ReportsScreen extends ConsumerWidget {
           bottom: const TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            indicatorColor: AppColors.accent,
             tabs: [
               Tab(text: 'Geral'),
               Tab(text: 'Produção'),
@@ -106,7 +111,7 @@ class ReportsScreen extends ConsumerWidget {
         ),
         body: ordersAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, _) => Center(child: Text('Erro: $err')),
+          error: (err, _) => Center(child: Text(friendlyError(err))),
           data: (orders) => TabBarView(
             children: [
               _ReportsGeral(orders: orders),
@@ -139,19 +144,19 @@ class _ReportsGeral extends StatelessWidget {
     final now         = DateTime.now();
     final thirtyAgo   = now.subtract(const Duration(days: 30));
     final last30      = orders.where((o) => o.createdAt.isAfter(thirtyAgo)).toList();
-    final delivered30 = orders.where((o) => o.status == OSStatus.entrega && o.statusChangedAt.isAfter(thirtyAgo)).toList();
+    final delivered30 = orders.where((o) => o.status == OSStatus.entregue && o.statusChangedAt.isAfter(thirtyAgo)).toList();
     final totalValue  = last30.fold<double>(0, (s, o) => s + o.totalValue);
-    final inProgress  = orders.where((o) => o.status != OSStatus.entrega).length;
+    final inProgress  = orders.where((o) => o.status != OSStatus.entregue).length;
 
     final todayD = DateTime(now.year, now.month, now.day);
     final entreguesNoPrazo = orders.where((o) {
-      if (o.status != OSStatus.entrega || o.scheduledDate == null) return false;
+      if (o.status != OSStatus.entregue || o.scheduledDate == null) return false;
       final dl = DateTime(o.scheduledDate!.year, o.scheduledDate!.month, o.scheduledDate!.day);
       final up = DateTime(o.statusChangedAt.year, o.statusChangedAt.month, o.statusChangedAt.day);
       return !up.isAfter(dl);
     }).length;
     final vencidas   = orders.where((o) {
-      if (o.status == OSStatus.entrega || o.scheduledDate == null) return false;
+      if (o.status == OSStatus.entregue || o.scheduledDate == null) return false;
       return DateTime(o.scheduledDate!.year, o.scheduledDate!.month, o.scheduledDate!.day)
           .isBefore(todayD);
     }).length;
@@ -167,13 +172,10 @@ class _ReportsGeral extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
 
         // ── KPI row ────────────────────────────────────────────────────────
-        Row(children: [
+        ResponsiveKpiGrid(children: [
           _KPICard(label: 'OS Criadas (30d)',    value: '${last30.length}',                   icon: LucideIcons.clipboardList, color: AppColors.accent),
-          const SizedBox(width: 12),
           _KPICard(label: 'OS Entregues (30d)',  value: '${delivered30.length}',              icon: LucideIcons.checkCircle,   color: AppColors.staleOk),
-          const SizedBox(width: 12),
           _KPICard(label: 'Valor Orçado (30d)',  value: Formatters.formatCurrency(totalValue),icon: LucideIcons.dollarSign,    color: AppColors.primary),
-          const SizedBox(width: 12),
           _KPICard(label: 'Pontualidade',        value: '$pontual%',
             sub: '$entreguesNoPrazo no prazo',
             icon: LucideIcons.award,
@@ -203,16 +205,11 @@ class _ReportsGeral extends StatelessWidget {
         _SectionCard(
           title: 'Cumprimento de Prazo',
           icon: LucideIcons.calendarCheck,
-          child: IntrinsicHeight(
-            child: Row(children: [
-              _StatBlock(value: '$entreguesNoPrazo', label: 'Entregues no prazo',           color: AppColors.staleOk),
-              _Divider(),
-              _StatBlock(value: '$vencidas',         label: 'Com prazo vencido (em aberto)',color: AppColors.staleCrit),
-              _Divider(),
-              _StatBlock(value: '$semPrazo',         label: 'Sem prazo definido',           color: AppColors.textMuted),
-              _Divider(),
-              _StatBlock(value: '$inProgress',       label: 'Total em andamento',           color: AppColors.primary),
-            ]),
+          child: _PrazoBlocks(
+            entreguesNoPrazo: entreguesNoPrazo,
+            vencidas: vencidas,
+            semPrazo: semPrazo,
+            inProgress: inProgress,
           ),
         ),
         const SizedBox(height: 24),
@@ -395,7 +392,7 @@ class _ReportsProducaoState extends ConsumerState<_ReportsProducao> {
 
     return assignmentsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, _) => Center(child: Text('Erro ao carregar atribuições: $err')),
+      error: (err, _) => Center(child: Text(friendlyError(err))),
       data: (assignments) {
         final since = _period.since;
         final filtered = since == null
@@ -469,20 +466,24 @@ class _ProductionTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    TextStyle h() => AppTheme.jakarta(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textMuted);
+    final mobile = context.isMobile;
+    final nameFlex = mobile ? 3 : 4;
+    final numFlex = mobile ? 2 : 1;
+    TextStyle h() => AppTheme.jakarta(fontSize: mobile ? 10 : 11, fontWeight: FontWeight.w700, color: AppColors.textMuted);
     Widget num(int v) => Text('$v',
         textAlign: TextAlign.right,
         style: AppTheme.numeric(fontSize: 13, fontWeight: FontWeight.w700));
+    Widget head(String t) => Text(t, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.right, style: h());
 
     return Column(children: [
       Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(children: [
-          Expanded(flex: 4, child: Text('FUNCIONÁRIO', style: h())),
-          Expanded(child: Text('CORTOU', textAlign: TextAlign.right, style: h())),
-          Expanded(child: Text('MONTOU', textAlign: TextAlign.right, style: h())),
-          Expanded(child: Text('ENTREGOU', textAlign: TextAlign.right, style: h())),
-          Expanded(child: Text('TOTAL', textAlign: TextAlign.right, style: h())),
+          Expanded(flex: nameFlex, child: Text('FUNCIONÁRIO', maxLines: 1, overflow: TextOverflow.ellipsis, style: h())),
+          Expanded(flex: numFlex, child: head('CORTE')),
+          Expanded(flex: numFlex, child: head('MONT.')),
+          Expanded(flex: numFlex, child: head('ENTR.')),
+          Expanded(flex: numFlex, child: head('TOTAL')),
         ]),
       ),
       const Divider(color: AppColors.border),
@@ -490,16 +491,17 @@ class _ProductionTable extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 9),
             child: Row(children: [
               Expanded(
-                flex: 4,
+                flex: nameFlex,
                 child: Text(r.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w600)),
               ),
-              Expanded(child: num(r.corte)),
-              Expanded(child: num(r.montagem)),
-              Expanded(child: num(r.entrega)),
+              Expanded(flex: numFlex, child: num(r.corte)),
+              Expanded(flex: numFlex, child: num(r.montagem)),
+              Expanded(flex: numFlex, child: num(r.entrega)),
               Expanded(
+                flex: numFlex,
                 child: Text('${r.total}',
                     textAlign: TextAlign.right,
                     style: AppTheme.numeric(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.primary)),
@@ -642,11 +644,9 @@ class _ReportsVendasState extends State<_ReportsVendas> {
             ),
           )
         else ...[
-          Row(children: [
+          ResponsiveKpiGrid(children: [
             _KPICard(label: 'Total vendido', value: Formatters.formatCurrency(grandTotal), icon: LucideIcons.dollarSign, color: AppColors.primary),
-            const SizedBox(width: 12),
             _KPICard(label: 'OS no período', value: '${filtered.length}', icon: LucideIcons.clipboardList, color: AppColors.accent),
-            const SizedBox(width: 12),
             _KPICard(
               label: 'Top vendedor',
               value: rows.first.name.split(' ').first,
@@ -701,7 +701,7 @@ class _SellerTable extends StatelessWidget {
           decoration: isTop
               ? BoxDecoration(
                   color: AppColors.accent.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                 )
               : null,
           child: Row(children: [
@@ -842,41 +842,71 @@ class _StalledRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = AppColors.stalenessColor(order.daysStale);
-    return InkWell(
-      onTap: () => context.push('/orders/${order.id}'),
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-        child: Row(children: [
+
+    Widget badge() => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppTheme.radiusXs),
+      ),
+      child: Text(order.daysStale <= 0 ? 'Hoje' : '${order.daysStale}d parado',
+          style: AppTheme.numeric(fontSize: 11, fontWeight: FontWeight.w800, color: color)),
+    );
+
+    Widget content;
+    if (context.isMobile) {
+      content = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Text(order.formattedNumber,
+              style: AppTheme.numeric(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.primary)),
+          const SizedBox(width: 8),
           Expanded(
-            flex: 3,
-            child: Text(order.formattedNumber,
-                style: AppTheme.numeric(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.primary)),
-          ),
-          Expanded(
-            flex: 6,
             child: Text(order.customerName ?? '—',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w600)),
           ),
-          Expanded(
-            flex: 4,
-            child: Text(Formatters.formatCurrency(order.totalValue),
-                textAlign: TextAlign.right,
-                style: AppTheme.numeric(fontSize: 12.5, fontWeight: FontWeight.w700)),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(order.daysStale <= 0 ? 'Hoje' : '${order.daysStale}d parado',
-                style: AppTheme.numeric(fontSize: 11, fontWeight: FontWeight.w800, color: color)),
-          ),
         ]),
+        const SizedBox(height: 6),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text(Formatters.formatCurrency(order.totalValue),
+              maxLines: 1,
+              style: AppTheme.numeric(fontSize: 13, fontWeight: FontWeight.w700)),
+          badge(),
+        ]),
+      ]);
+    } else {
+      content = Row(children: [
+        Expanded(
+          flex: 3,
+          child: Text(order.formattedNumber,
+              style: AppTheme.numeric(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.primary)),
+        ),
+        Expanded(
+          flex: 6,
+          child: Text(order.customerName ?? '—',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w600)),
+        ),
+        Expanded(
+          flex: 4,
+          child: Text(Formatters.formatCurrency(order.totalValue),
+              maxLines: 1,
+              textAlign: TextAlign.right,
+              style: AppTheme.numeric(fontSize: 12.5, fontWeight: FontWeight.w700)),
+        ),
+        const SizedBox(width: 12),
+        badge(),
+      ]);
+    }
+
+    return InkWell(
+      onTap: () => context.push('/orders/${order.id}'),
+      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        child: content,
       ),
     );
   }
@@ -904,7 +934,7 @@ class _PeriodSelector extends StatelessWidget {
         selectedColor: AppColors.accent,
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
           side: BorderSide(color: active ? AppColors.accent : AppColors.border),
         ),
       );
@@ -979,20 +1009,71 @@ class _KPICard extends StatelessWidget {
 class _StatBlock extends StatelessWidget {
   final String value, label;
   final Color color;
-  const _StatBlock({required this.value, required this.label, required this.color});
+  final bool center;
+  const _StatBlock({required this.value, required this.label, required this.color, this.center = false});
 
   @override
-  Widget build(BuildContext context) => Expanded(
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(value,
-          style: AppTheme.numeric(fontSize: 32, fontWeight: FontWeight.w800, color: color)),
-        const SizedBox(height: 6),
-        Text(label, style: AppTheme.jakarta(fontSize: 11.5, color: AppColors.textSecondary)),
+  Widget build(BuildContext context) {
+    final fontSize = center ? 26.0 : 32.0;
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          crossAxisAlignment: center ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+          children: [
+            Text(value,
+              style: AppTheme.numeric(fontSize: fontSize, fontWeight: FontWeight.w800, color: color)),
+            const SizedBox(height: 6),
+            Text(label,
+              textAlign: center ? TextAlign.center : TextAlign.start,
+              style: AppTheme.jakarta(fontSize: 11.5, color: AppColors.textSecondary)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Cumprimento de Prazo: linha única no desktop, grade 2×2 no celular.
+class _PrazoBlocks extends StatelessWidget {
+  final int entreguesNoPrazo, vencidas, semPrazo, inProgress;
+  const _PrazoBlocks({
+    required this.entreguesNoPrazo,
+    required this.vencidas,
+    required this.semPrazo,
+    required this.inProgress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (context.isMobile) {
+      return Column(children: [
+        IntrinsicHeight(child: Row(children: [
+          _StatBlock(value: '$entreguesNoPrazo', label: 'Entregues no prazo',            color: AppColors.staleOk,   center: true),
+          _Divider(),
+          _StatBlock(value: '$vencidas',          label: 'Com prazo vencido (em aberto)', color: AppColors.staleCrit, center: true),
+        ])),
+        const SizedBox(height: 16),
+        IntrinsicHeight(child: Row(children: [
+          _StatBlock(value: '$semPrazo',   label: 'Sem prazo definido',  color: AppColors.textMuted, center: true),
+          _Divider(),
+          _StatBlock(value: '$inProgress', label: 'Total em andamento',  color: AppColors.primary,   center: true),
+        ])),
+      ]);
+    }
+
+    return IntrinsicHeight(
+      child: Row(children: [
+        _StatBlock(value: '$entreguesNoPrazo', label: 'Entregues no prazo',            color: AppColors.staleOk),
+        _Divider(),
+        _StatBlock(value: '$vencidas',          label: 'Com prazo vencido (em aberto)', color: AppColors.staleCrit),
+        _Divider(),
+        _StatBlock(value: '$semPrazo',          label: 'Sem prazo definido',            color: AppColors.textMuted),
+        _Divider(),
+        _StatBlock(value: '$inProgress',        label: 'Total em andamento',            color: AppColors.primary),
       ]),
-    ),
-  );
+    );
+  }
 }
 
 class _Divider extends StatelessWidget {

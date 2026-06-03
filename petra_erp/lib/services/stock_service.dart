@@ -37,7 +37,7 @@ class StockService {
   }) async {
     final userId = _client.auth.currentUser?.id;
 
-    // 1) Caminho preferido: função Postgres atômica.
+    // 1) Caminho preferido: função Postgres atômica (valida saldo e é transacional).
     try {
       await _client.rpc('register_stock_movement', params: {
         'p_product_id': productId,
@@ -48,11 +48,41 @@ class StockService {
         'p_created_by': userId,
       });
       return;
-    } catch (_) {
-      // Função ausente/erro → fallback no cliente.
+    } on PostgrestException catch (e) {
+      // Só cai no fallback se a função não existir no banco (42883 / PGRST202).
+      // Erros de negócio (ex.: estoque insuficiente) devem propagar.
+      final missing = e.code == '42883' || e.code == 'PGRST202';
+      if (!missing) rethrow;
     }
 
-    // 2) Fallback no cliente.
+    // 2) Fallback no cliente (não atômico) — usado só se a RPC não existir.
+    final current = await _client
+        .from('products')
+        .select('stock_quantity')
+        .eq('id', productId)
+        .single();
+    final currentQty = (current['stock_quantity'] as num? ?? 0).toDouble();
+
+    if (quantity < 0) {
+      throw Exception('Quantidade não pode ser negativa');
+    }
+
+    final double newQty;
+    switch (type) {
+      case StockMovement.typeEntrada:
+        newQty = currentQty + quantity;
+      case StockMovement.typeSaida:
+        newQty = currentQty - quantity;
+        if (newQty < 0) {
+          throw Exception('Estoque insuficiente: saldo $currentQty menor que saída $quantity');
+        }
+      case StockMovement.typeAjuste:
+        // Ajuste define o estoque exatamente para a quantidade informada.
+        newQty = quantity;
+      default:
+        throw Exception('Tipo de movimento inválido: $type');
+    }
+
     await _client.from('stock_movements').insert({
       'product_id': productId,
       'type': type,
@@ -62,29 +92,9 @@ class StockService {
       'created_by': userId,
     });
 
-    final current = await _client
-        .from('products')
-        .select('stock_quantity')
-        .eq('id', productId)
-        .single();
-    final currentQty = (current['stock_quantity'] as num? ?? 0).toDouble();
-
-    final double newQty;
-    switch (type) {
-      case StockMovement.typeEntrada:
-        newQty = currentQty + quantity;
-      case StockMovement.typeSaida:
-        newQty = currentQty - quantity;
-      case StockMovement.typeAjuste:
-        // Ajuste define o estoque exatamente para a quantidade informada.
-        newQty = quantity;
-      default:
-        newQty = currentQty;
-    }
-
     await _client
         .from('products')
-        .update({'stock_quantity': newQty < 0 ? 0 : newQty})
+        .update({'stock_quantity': newQty})
         .eq('id', productId);
   }
 }

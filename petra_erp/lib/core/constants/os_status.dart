@@ -3,11 +3,11 @@ class OSStatus {
 
   static const orcamento = 'orcamento';
   static const aprovado = 'aprovado';
-  static const recebido = 'recebido';
   static const esperandoMaterial = 'esperando_material';
   static const corte = 'corte';
   static const montagem = 'montagem';
   static const entrega = 'entrega';
+  static const entregue = 'entregue';
 
   static const List<String> ordered = [
     orcamento,
@@ -16,16 +16,17 @@ class OSStatus {
     corte,
     montagem,
     entrega,
+    entregue,
   ];
 
   static const Map<String, String> labels = {
     orcamento: 'Orçamento',
     aprovado: 'Aprovado',
-    recebido: 'Recebido',
     esperandoMaterial: 'Esperando Material',
     corte: 'Corte',
     montagem: 'Montagem',
     entrega: 'Entrega',
+    entregue: 'Entregue',
   };
 
   /// Etapas comerciais (board "Pedidos").

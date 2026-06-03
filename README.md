@@ -69,7 +69,7 @@ com role `vendedor`; promova para `admin` rodando no SQL Editor:
 
 ```sql
 UPDATE public.profiles
-SET role = 'admin'
+SET roles = ARRAY['admin']
 WHERE email = 'voce@exemplo.com';
 ```
 
@@ -130,3 +130,27 @@ docker compose up --build
 - `vendedor` — gerencia clientes, produtos, OS
 - `cortador` / `montador` / `entregador` — atribuíveis às etapas de produção
   correspondentes (regra forçada pelo trigger `enforce_assignment_role`)
+
+## Pendências de produção (ação manual / custo)
+
+Itens que exigem decisão de infraestrutura e **não** são resolvíveis por código:
+
+- **Plano Pro do Supabase** — necessário para:
+  - Ativar a *proteção de senha vazada* (HaveIBeenPwned). No plano Free a API
+    retorna `available on Pro Plans and up`.
+  - Evitar que o projeto **pause** após ~1 semana de inatividade (no Free).
+- **SMTP próprio** (painel **Authentication → SMTP Settings**) — sem ele, e-mails
+  de *recuperação de senha* e convites usam o servidor compartilhado do Supabase,
+  que tem limite baixo de envios e costuma cair em spam. Configure um SMTP
+  (SendGrid, Resend, Amazon SES, etc.) antes de depender do "esqueci a senha".
+- **Avisos de advisor remanescentes** — os 3 alertas
+  `authenticated_security_definer_function_executable` para `is_admin`,
+  `get_user_role` e `get_user_roles` são **intencionais**: essas funções são
+  usadas nas políticas RLS e o Postgres exige `EXECUTE` para o role autenticado
+  (revogar quebra todas as queries). São seguras (só leem o próprio `auth.uid()`).
+
+## Uploads (Supabase Storage)
+
+Logos da empresa e desenhos/croquis das OS são enviados para o bucket público
+`assets` (migration `009_storage_assets_bucket.sql`). Leitura é pública; escrita
+é restrita a `admin`/`vendedor` autenticados.

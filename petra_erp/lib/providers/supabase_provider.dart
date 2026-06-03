@@ -54,3 +54,21 @@ final paymentServiceProvider = Provider<PaymentService>((ref) {
   final client = ref.watch(supabaseClientProvider);
   return PaymentService(client);
 });
+
+// Provides the CompanyService
+final companyServiceProvider = Provider<CompanyService>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  return CompanyService(client);
+});
+
+// Provides the StorageService
+final storageServiceProvider = Provider<StorageService>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  return StorageService(client);
+});
+
+// Provides the WorkerAuthService
+final workerAuthServiceProvider = Provider<WorkerAuthService>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  return WorkerAuthService(client);
+});

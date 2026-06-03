@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../core/utils/error_messages.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/widgets.dart';
 
@@ -13,9 +15,7 @@ class ProfileScreen extends ConsumerWidget {
     final profileAsync = ref.watch(currentProfileProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Meu Perfil'),
-      ),
+      appBar: AppBar(title: const Text('Meu Perfil')),
       body: profileAsync.when(
         data: (profile) {
           if (profile == null) {
@@ -30,9 +30,10 @@ class ProfileScreen extends ConsumerWidget {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 500),
                 child: Card(
-                  elevation: 4,
+                  elevation: 1,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16.0),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                    side: const BorderSide(color: AppColors.border),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(32.0),
@@ -44,12 +45,12 @@ class ProfileScreen extends ConsumerWidget {
                           radius: 50.0,
                           backgroundColor: AppColors.secondary,
                           child: Text(
-                            profile.name.isNotEmpty 
-                                ? profile.name.substring(0, 1).toUpperCase() 
+                            profile.name.isNotEmpty
+                                ? profile.name.substring(0, 1).toUpperCase()
                                 : 'U',
-                            style: const TextStyle(
-                              fontSize: 36.0,
-                              fontWeight: FontWeight.bold,
+                            style: AppTheme.syne(
+                              fontSize: 36,
+                              fontWeight: FontWeight.w700,
                               color: AppColors.primary,
                             ),
                           ),
@@ -59,9 +60,9 @@ class ProfileScreen extends ConsumerWidget {
                         // Name
                         Text(
                           profile.name,
-                          style: const TextStyle(
-                            fontSize: 22.0,
-                            fontWeight: FontWeight.bold,
+                          style: AppTheme.syne(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
                             color: AppColors.primary,
                           ),
                           textAlign: TextAlign.center,
@@ -70,20 +71,26 @@ class ProfileScreen extends ConsumerWidget {
 
                         // Role Badge
                         Chip(
-                          backgroundColor: AppColors.primary.withValues(alpha: 0.08),
+                          backgroundColor: AppColors.primary.withValues(
+                            alpha: 0.08,
+                          ),
                           label: Text(
                             profile.role.toUpperCase(),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
+                            style: AppTheme.jakarta(
+                              fontWeight: FontWeight.w700,
                               color: AppColors.primary,
-                              fontSize: 12.0,
+                              fontSize: 12,
                             ),
                           ),
                         ),
                         const Divider(height: 40.0),
 
                         // Info Items
-                        _buildProfileField(Icons.email, 'E-mail', profile.email),
+                        _buildProfileField(
+                          Icons.email,
+                          'E-mail',
+                          profile.email,
+                        ),
                         const SizedBox(height: 16.0),
                         _buildProfileField(
                           Icons.phone,
@@ -111,15 +118,19 @@ class ProfileScreen extends ConsumerWidget {
                               ),
                             ),
                             icon: const Icon(Icons.logout),
-                            label: const Text(
+                            label: Text(
                               'SAIR DO SISTEMA',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                              style: AppTheme.jakarta(
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
                             ),
                             onPressed: () async {
                               final confirm = await ConfirmDialog.show(
                                 context,
                                 title: 'Sair do Sistema',
-                                content: 'Deseja realmente encerrar sua sessão atual?',
+                                content:
+                                    'Deseja realmente encerrar sua sessão atual?',
                                 confirmColor: AppColors.error,
                               );
                               if (confirm) {
@@ -137,9 +148,7 @@ class ProfileScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(
-          child: Text('Erro ao carregar dados do perfil: $err'),
-        ),
+        error: (err, _) => Center(child: Text(friendlyError(err))),
       ),
     );
   }
@@ -155,13 +164,17 @@ class ProfileScreen extends ConsumerWidget {
             children: [
               Text(
                 label,
-                style: const TextStyle(fontSize: 12.0, color: AppColors.grey, fontWeight: FontWeight.bold),
+                style: AppTheme.jakarta(
+                  fontSize: 12,
+                  color: AppColors.grey,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 2.0),
               Text(
                 value,
-                style: const TextStyle(
-                  fontSize: 15.0,
+                style: AppTheme.jakarta(
+                  fontSize: 15,
                   fontWeight: FontWeight.w500,
                   color: AppColors.primary,
                 ),

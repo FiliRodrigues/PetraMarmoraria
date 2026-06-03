@@ -6,6 +6,7 @@ import '../../core/constants/os_status.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/models.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/os_provider.dart';
 import 'status_transition_dialog.dart';
 
@@ -42,30 +43,26 @@ class _OSCardState extends ConsumerState<OSCard> {
 
   @override
   Widget build(BuildContext context) {
-    final o     = widget.order;
-    final days  = o.daysStale;
+    final o = widget.order;
+    final days = o.daysStale;
 
     final card = MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
-      onExit:  (_) => setState(() => _hovered = false),
+      onExit: (_) => setState(() => _hovered = false),
       cursor: SystemMouseCursors.click,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 140),
         transform: Matrix4.translationValues(0, _hovered ? -2 : 0, 0),
-        margin: const EdgeInsets.only(bottom: 7),
+        margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           border: Border.all(
-            color: _hovered ? AppColors.accent.withValues(alpha: 0.35) : AppColors.border,
+            color: _hovered
+                ? AppColors.accent.withValues(alpha: 0.35)
+                : AppColors.border,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: _hovered ? AppColors.shadowElevated : AppColors.shadowCard,
-              blurRadius: _hovered ? 16 : 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          boxShadow: _hovered ? AppTheme.shadowMedium : AppTheme.shadowSoft,
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
@@ -77,94 +74,117 @@ class _OSCardState extends ConsumerState<OSCard> {
                 Container(width: 3, color: _staleColor),
                 Expanded(
                   child: Padding(
-        padding: const EdgeInsets.all(11),
-        child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Row 1: OS# + badge ────────────────────────────────────────
-              Row(
-                children: [
-                  Text(
-                    o.formattedNumber,
-                    style: AppTheme.numeric(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.primary,
+                    padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── Row 1: OS# + badge ────────────────────────────────────────
+                        Row(
+                          children: [
+                            Text(
+                              o.formattedNumber,
+                              style: AppTheme.numeric(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const Spacer(),
+                            if (_isDelayed)
+                              _urgencyBadge('VENCIDA', AppColors.staleCrit)
+                            else if (_isToday)
+                              _urgencyBadge('HOJE', AppColors.staleWarn),
+                            if (!widget.isFeedback) ...[
+                              const SizedBox(width: 4),
+                              _ContextMenu(order: o),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+
+                        // ── Cliente ───────────────────────────────────────────────────
+                        Text(
+                          o.customerName ?? 'Sem cliente',
+                          style: AppTheme.syne(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+
+                        // ── Material ─────────────────────────────────────────────────
+                        if (o.material != null)
+                          Text(
+                            o.material!,
+                            style: AppTheme.jakarta(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textMuted,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        const SizedBox(height: 8),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: AppColors.neutral200,
+                        ),
+                        const SizedBox(height: 7),
+
+                        // ── Row final: prazo + staleness ──────────────────────────────
+                        Row(
+                          children: [
+                            if (o.scheduledDate != null &&
+                                o.status != OSStatus.entrega) ...[
+                              Icon(
+                                LucideIcons.calendarClock,
+                                size: 11,
+                                color: _isDelayed
+                                    ? AppColors.staleCrit
+                                    : AppColors.textMuted,
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                _fmt(o.scheduledDate!),
+                                style: AppTheme.numeric(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: _isDelayed
+                                      ? AppColors.staleCrit
+                                      : AppColors.textMuted,
+                                ),
+                              ),
+                            ],
+                            const Spacer(),
+                            // Staleness badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _staleColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                days == 0 ? 'Hoje' : '${days}d',
+                                style: AppTheme.numeric(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: _staleColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                  const Spacer(),
-                  if (_isDelayed)
-                    _urgencyBadge('VENCIDA', AppColors.staleCrit)
-                  else if (_isToday)
-                    _urgencyBadge('HOJE', AppColors.staleWarn),
-                  if (!widget.isFeedback) ...[
-                    const SizedBox(width: 4),
-                    _ContextMenu(order: o),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 5),
-
-              // ── Cliente ───────────────────────────────────────────────────
-              Text(
-                o.customerName ?? 'Sem cliente',
-                style: AppTheme.jakarta(fontSize: 13, fontWeight: FontWeight.w600),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-
-              // ── Material ─────────────────────────────────────────────────
-              if (o.material != null)
-                Text(
-                  o.material!,
-                  style: AppTheme.jakarta(fontSize: 11, color: AppColors.textMuted),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-              const SizedBox(height: 8),
-
-              // ── Row final: prazo + staleness ──────────────────────────────
-              Row(
-                children: [
-                  if (o.scheduledDate != null && o.status != OSStatus.entrega) ...[
-                    Icon(LucideIcons.calendarClock,
-                      size: 11,
-                      color: _isDelayed ? AppColors.staleCrit : AppColors.textMuted),
-                    const SizedBox(width: 3),
-                    Text(
-                      _fmt(o.scheduledDate!),
-                      style: AppTheme.numeric(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: _isDelayed ? AppColors.staleCrit : AppColors.textMuted,
-                      ),
-                    ),
-                  ],
-                  const Spacer(),
-                  // Staleness badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: _staleColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      days == 0 ? 'Hoje' : '${days}d',
-                      style: AppTheme.numeric(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: _staleColor,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-                  ),
-                ),
-              ),
               ],
             ),
           ),
@@ -194,9 +214,14 @@ class _OSCardState extends ConsumerState<OSCard> {
       color: color.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(4),
     ),
-    child: Text(label,
-      style: AppTheme.jakarta(fontSize: 9, fontWeight: FontWeight.w800, color: color)
-        .copyWith(letterSpacing: 0.4)),
+    child: Text(
+      label,
+      style: AppTheme.jakarta(
+        fontSize: 9.5,
+        fontWeight: FontWeight.w800,
+        color: color,
+      ).copyWith(letterSpacing: 0.4),
+    ),
   );
 }
 
@@ -208,12 +233,18 @@ class _ContextMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return PopupMenuButton<String>(
-      icon: Icon(LucideIcons.moreVertical, size: 16, color: AppColors.textMuted),
+      icon: Icon(
+        LucideIcons.moreVertical,
+        size: 16,
+        color: AppColors.textMuted,
+      ),
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      ),
       onSelected: (v) async {
-        if (v == 'edit')   context.push('/orders/${order.id}/edit');
+        if (v == 'edit') context.push('/orders/${order.id}/edit');
         if (v == 'detail') context.push('/orders/${order.id}');
         if (v == 'move') {
           showDialog(
@@ -224,22 +255,86 @@ class _ContextMenu extends ConsumerWidget {
             ),
           );
         }
+        if (v == 'entregue') {
+          await _markAsEntregue(context, ref);
+        }
       },
-      itemBuilder: (_) => [
-        _menuItem('detail', LucideIcons.eye,            'Ver Detalhes'),
-        _menuItem('edit',   LucideIcons.edit,           'Editar OS'),
-        _menuItem('move',   LucideIcons.arrowLeftRight, 'Mover Etapa'),
-      ],
+      itemBuilder: (_) {
+        final items = <PopupMenuEntry<String>>[
+          _menuItem('detail', LucideIcons.eye, 'Ver Detalhes'),
+          _menuItem('edit', LucideIcons.edit, 'Editar OS'),
+          _menuItem('move', LucideIcons.arrowLeftRight, 'Mover Etapa'),
+        ];
+        if (order.status == OSStatus.entrega) {
+          items.add(
+            _menuItem(
+              'entregue',
+              LucideIcons.checkCircle,
+              'Marcar como Entregue',
+            ),
+          );
+        }
+        return items;
+      },
     );
   }
 
-  PopupMenuItem<String> _menuItem(String v, IconData icon, String label) =>
-    PopupMenuItem(
-      value: v,
-      child: Row(children: [
-        Icon(icon, size: 15),
-        const SizedBox(width: 8),
-        Text(label, style: AppTheme.jakarta(fontSize: 13)),
-      ]),
+  Future<void> _markAsEntregue(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          'Confirmar Entrega',
+          style: AppTheme.syne(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          'Marcar OS ${order.formattedNumber} como Entregue? A OS sairá do painel Kanban.',
+          style: AppTheme.jakarta(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Cancelar',
+              style: AppTheme.jakarta(
+                color: AppColors.textMuted,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Confirmar',
+              style: AppTheme.jakarta(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
     );
+    if (ok != true) return;
+    final user = ref.read(authProvider).value;
+    if (user == null) return;
+    try {
+      await ref
+          .read(osProvider.notifier)
+          .moveOrder(
+            orderId: order.id,
+            newStatus: OSStatus.entregue,
+            changedById: user.id,
+          );
+    } catch (_) {}
+  }
+
+  PopupMenuItem<String> _menuItem(String v, IconData icon, String label) =>
+      PopupMenuItem(
+        value: v,
+        child: Row(
+          children: [
+            Icon(icon, size: 15),
+            const SizedBox(width: 8),
+            Text(label, style: AppTheme.jakarta(fontSize: 13)),
+          ],
+        ),
+      );
 }
