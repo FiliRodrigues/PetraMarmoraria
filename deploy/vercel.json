@@ -1,0 +1,22 @@
+{
+  "cleanUrls": false,
+  "rewrites": [
+    { "source": "/app/(.*)", "destination": "/app/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/download/petra-setup.exe",
+      "headers": [
+        { "key": "Content-Type", "value": "application/octet-stream" },
+        { "key": "Content-Disposition", "value": "attachment; filename=\"petra-setup.exe\"" }
+      ]
+    },
+    {
+      "source": "/download/petra.apk",
+      "headers": [
+        { "key": "Content-Type", "value": "application/vnd.android.package-archive" },
+        { "key": "Content-Disposition", "value": "attachment; filename=\"petra.apk\"" }
+      ]
+    }
+  ]
+}
