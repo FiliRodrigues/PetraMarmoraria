@@ -99,3 +99,7 @@ $RECYCLE.BIN/
 # ============ Claude / harness ============
 skills/
 .claude/
+
+# Artefatos de deploy (gerados — nao versionar)
+deploy/app/
+deploy/download/
