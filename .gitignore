@@ -9,6 +9,9 @@ dart_defines.json
 dart_defines.local.json
 _apply_all.sql
 
+# ============ Supabase CLI ============
+supabase/.temp/
+
 # ============ Flutter / Dart (petra_erp) ============
 petra_erp/.dart_tool/
 petra_erp/.flutter-plugins
