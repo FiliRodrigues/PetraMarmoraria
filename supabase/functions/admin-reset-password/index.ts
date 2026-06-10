@@ -28,9 +28,20 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { data: isAdmin, error: roleError } = await supabase.rpc("is_admin");
+    // NOTE: NÃO usamos supabase.rpc("is_admin") porque o client foi criado com
+    // SERVICE_ROLE_KEY. Em contexto service_role, auth.uid() retorna NULL e
+    // is_admin() SEMPRE retorna false. Em vez disso, consultamos a tabela profiles
+    // diretamente (service_role bypassa RLS) usando o user.id já verificado acima.
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("roles")
+      .eq("id", user.id)
+      .eq("active", true)
+      .maybeSingle();
 
-    if (roleError || !isAdmin) {
+    const isAdmin = profile?.roles?.includes("admin") ?? false;
+
+    if (!isAdmin) {
       return new Response(
         JSON.stringify({ error: "Apenas administradores podem redefinir senhas" }),
         { status: 403, headers: { "Content-Type": "application/json" } },
@@ -71,8 +82,9 @@ Deno.serve(async (req: Request) => {
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
   } catch (error) {
+    console.error("admin-reset-password error:", error);
     return new Response(
-      JSON.stringify({ error: `Erro interno: ${error}` }),
+      JSON.stringify({ error: "Erro interno do servidor" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }

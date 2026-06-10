@@ -104,7 +104,7 @@ Deno.serve(async (req: Request) => {
     if (action === "list") {
       const { data, error } = await admin
         .from("profiles")
-        .select("id, name, roles, blocked")
+        .select("id, name")
         .eq("login_mode", "pin")
         .eq("active", true)
         .order("name", { ascending: true });
@@ -115,7 +115,9 @@ Deno.serve(async (req: Request) => {
     const workerId = body.worker_id as string | undefined;
     const pin = body.pin as string | undefined;
 
-    // --- set: primeiro acesso — funcionário define o próprio PIN ---
+    // --- set: primeiro acesso self-service — só permitido enquanto não há PIN.
+    // A guarda pin_set torna isto de uso único: depois de definido, set recusa
+    // (already_set) e a troca passa a exigir sessão própria via 'change'.
     if (action === "set") {
       if (!workerId || !pin || !PIN_REGEX.test(pin)) {
         return respond({ error: `PIN deve ter entre ${MIN_PIN_LENGTH} e ${MAX_PIN_LENGTH} dígitos` }, 400);
@@ -153,12 +155,18 @@ Deno.serve(async (req: Request) => {
 
       const ok = await bcrypt.compare(pin, profile.pin_hash);
       if (!ok) {
-        const attempts = (profile.failed_attempts ?? 0) + 1;
-        const willBlock = attempts >= MAX_ATTEMPTS;
-        await admin
+        const { data: updated, error: updErr } = await admin
           .from("profiles")
-          .update({ failed_attempts: attempts, blocked: willBlock })
-          .eq("id", workerId);
+          .update({ failed_attempts: profile.failed_attempts + 1 })
+          .eq("id", workerId)
+          .select("failed_attempts")
+          .single();
+        if (updErr || !updated) return respond({ error: "Falha ao verificar PIN" }, 500);
+        const attempts = updated.failed_attempts as number;
+        const willBlock = attempts >= MAX_ATTEMPTS;
+        if (willBlock) {
+          await admin.from("profiles").update({ blocked: true }).eq("id", workerId);
+        }
         await delay(attempts >= 3 ? 5000 : attempts === 2 ? 2000 : 1000);
         if (willBlock) return respond({ error: "Acesso bloqueado", code: "blocked" }, 403);
         return respond({
@@ -211,7 +219,8 @@ Deno.serve(async (req: Request) => {
 
     return respond({ error: "Ação desconhecida" }, 400);
   } catch (e) {
-    return respond({ error: `Erro interno: ${e}` }, 500);
+    console.error("worker-pin-login error:", e);
+    return respond({ error: "Erro interno do servidor" }, 500);
   }
 });
 
