@@ -353,7 +353,7 @@ class CustomerDetailScreen extends ConsumerWidget {
                 style: AppTheme.jakarta(
                   fontSize: 14,
                   color: AppColors.primary,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ],

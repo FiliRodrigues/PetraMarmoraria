@@ -378,7 +378,7 @@ class _DeadlineCell extends StatelessWidget {
       '$dd/$mm',
       style: AppTheme.jakarta(
         fontSize: 12,
-        fontWeight: overdue ? FontWeight.w700 : FontWeight.w500,
+        fontWeight: overdue ? FontWeight.w700 : FontWeight.w400,
         color: overdue ? AppColors.error : AppColors.textSecondary,
       ),
     );

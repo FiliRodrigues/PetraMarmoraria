@@ -6,7 +6,7 @@ import 'supabase_provider.dart';
 
 class ServiceOrderNotifier extends StateNotifier<AsyncValue<List<ServiceOrder>>> {
   final ServiceOrderService _service;
-  StreamSubscription<List<ServiceOrder>>? _streamSubscription;
+  StreamSubscription<List<Map<String, dynamic>>>? _streamSubscription;
 
   ServiceOrderNotifier(this._service) : super(const AsyncValue.loading()) {
     loadOrders();
@@ -23,7 +23,7 @@ class ServiceOrderNotifier extends StateNotifier<AsyncValue<List<ServiceOrder>>>
   }
 
   void _listenToStream() {
-    _streamSubscription = _service.streamServiceOrders().listen((event) async {
+    _streamSubscription = _service.streamServiceOrders().listen((_) async {
       // When database changes, reload orders to fetch client joins correctly
       await loadOrders();
     }, onError: (error, stack) {

@@ -3,12 +3,14 @@ import 'package:flutter/foundation.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-typedef BiometricCredentials = ({String email, String password});
+typedef BiometricSession = ({String accessToken, String refreshToken});
 
 /// Atalho de login por biometria, ativado por aparelho (Android/iOS).
 ///
-/// As credenciais ficam no cofre do SO (Keystore/Keychain) e só são lidas
-/// após autenticação biométrica. A autenticação real continua via Supabase.
+/// Os tokens de sessão ficam no cofre do SO (Keystore/Keychain) e só são lidos
+/// após autenticação biométrica. A sessão é restaurada via Supabase setSession,
+/// que faz refresh automático se o access token estiver expirado.
+/// Diferente de guardar a senha, o refresh_token pode ser revogado remotamente.
 class BiometricAuthService {
   BiometricAuthService({
     LocalAuthentication? localAuth,
@@ -19,8 +21,8 @@ class BiometricAuthService {
   final LocalAuthentication _auth;
   final FlutterSecureStorage _storage;
 
-  static const _kEmail = 'biometric_email';
-  static const _kPassword = 'biometric_password';
+  static const _kAccessToken = 'biometric_access_token';
+  static const _kRefreshToken = 'biometric_refresh_token';
 
   bool get _platformSupported => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
@@ -38,26 +40,25 @@ class BiometricAuthService {
     }
   }
 
-  /// Existe credencial salva para este aparelho.
+  /// Existe sessão salva para este aparelho.
   Future<bool> isEnabled() async {
     if (!_platformSupported) return false;
-    final email = await _storage.read(key: _kEmail);
-    final password = await _storage.read(key: _kPassword);
-    return email != null && password != null;
+    final refreshToken = await _storage.read(key: _kRefreshToken);
+    return refreshToken != null;
   }
 
-  Future<void> enable(String email, String password) async {
-    await _storage.write(key: _kEmail, value: email);
-    await _storage.write(key: _kPassword, value: password);
+  Future<void> saveSession(String accessToken, String refreshToken) async {
+    await _storage.write(key: _kAccessToken, value: accessToken);
+    await _storage.write(key: _kRefreshToken, value: refreshToken);
   }
 
   Future<void> disable() async {
-    await _storage.delete(key: _kEmail);
-    await _storage.delete(key: _kPassword);
+    await _storage.delete(key: _kAccessToken);
+    await _storage.delete(key: _kRefreshToken);
   }
 
-  /// Pede a biometria; se confirmada, devolve as credenciais salvas.
-  Future<BiometricCredentials?> authenticateAndGetCredentials() async {
+  /// Pede a biometria; se confirmada, devolve os tokens da sessão salva.
+  Future<BiometricSession?> authenticateAndGetSession() async {
     if (!await isEnabled()) return null;
     final ok = await _auth.authenticate(
       localizedReason: 'Confirme sua identidade para entrar',
@@ -67,9 +68,9 @@ class BiometricAuthService {
       ),
     );
     if (!ok) return null;
-    final email = await _storage.read(key: _kEmail);
-    final password = await _storage.read(key: _kPassword);
-    if (email == null || password == null) return null;
-    return (email: email, password: password);
+    final accessToken = await _storage.read(key: _kAccessToken);
+    final refreshToken = await _storage.read(key: _kRefreshToken);
+    if (refreshToken == null) return null;
+    return (accessToken: accessToken ?? '', refreshToken: refreshToken);
   }
 }

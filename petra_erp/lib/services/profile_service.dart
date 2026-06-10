@@ -108,8 +108,8 @@ class ProfileService {
     );
     if (res.status != 200) {
       final data = res.data;
-      final msg = data is Map ? data['error'] as String? : null;
-      throw Exception(msg ?? 'Falha ao redefinir senha');
+      final msg = data is Map ? (data['error'] as String?) : null;
+      throw Exception(msg ?? 'Falha ao redefinir senha (status ${res.status})');
     }
   }
 

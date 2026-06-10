@@ -31,26 +31,26 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final user = authState.value;
       final profile = profileAsync.value;
-      final profileLoading = profileAsync is AsyncLoading;
       final location = state.matchedLocation;
-
       final onPublic = _isPublic(location);
 
       if (user == null) {
         return onPublic ? null : '/entrar';
       }
 
-      if (profile == null && profileLoading) {
-        if (location == '/carregando') return null;
-        return '/carregando';
-      }
-
+      // Não espera o perfil — deixa a home carregar e o perfil resolve depois.
       if (profile != null && profile.isWorker) {
         if (!_isWorkerRoute(location)) return '/meu-painel';
         return null;
       }
 
-      if (profile != null && !profile.isWorker) {
+      if (profile == null) {
+        if (_isWorkerRoute(location)) return null;
+        if (onPublic || location == '/carregando') return '/';
+        return null;
+      }
+
+      if (!profile.isWorker) {
         if (onPublic || location == '/carregando' || _isWorkerRoute(location)) {
           return '/';
         }

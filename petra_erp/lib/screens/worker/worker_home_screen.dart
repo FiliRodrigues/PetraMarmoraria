@@ -677,12 +677,15 @@ class _TaskCard extends ConsumerWidget {
     final client = ref.read(supabaseClientProvider);
 
     try {
-      // Funcionário apenas conclui sua parte. Quem avança a OS para a próxima
-      // etapa (e atribui o próximo responsável) é o escritório/ADM via popup.
-      await client
+      final response = await client
           .from('order_assignments')
           .update({'completed_at': DateTime.now().toIso8601String()})
-          .eq('id', item.assignment.id);
+          .eq('id', item.assignment.id)
+          .select('id');
+
+      if ((response as List).isEmpty) {
+        throw Exception('Sem permissão para concluir esta etapa.');
+      }
 
       ref.invalidate(_stageTasksProvider);
       if (context.mounted) {

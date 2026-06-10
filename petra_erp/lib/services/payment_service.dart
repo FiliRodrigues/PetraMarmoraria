@@ -26,12 +26,16 @@ class PaymentService {
   }
 
   /// Todos os pagamentos.
-  Future<List<Payment>> getAll() async {
+  Future<List<Payment>> getAll({int? offset, int? limit, DateTime? startDate, DateTime? endDate}) async {
     try {
-      final response = await _client
+      dynamic query = _client
           .from('payments')
-          .select(_select)
-          .order('due_date', ascending: true);
+          .select(_select);
+      if (startDate != null) query = query.gte('due_date', startDate.toIso8601String().substring(0, 10));
+      if (endDate != null) query = query.lte('due_date', endDate.toIso8601String().substring(0, 10));
+      query = query.order('due_date', ascending: true);
+      if (offset != null && limit != null) query = query.range(offset, offset + limit - 1);
+      final response = await query;
       return (response as List).map((e) => Payment.fromMap(e)).toList();
     } catch (e) {
       rethrow;

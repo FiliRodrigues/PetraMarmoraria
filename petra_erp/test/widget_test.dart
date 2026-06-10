@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:petra_erp/app.dart';
 import 'package:petra_erp/providers/auth_provider.dart';
+import 'package:petra_erp/providers/os_provider.dart';
 import 'package:petra_erp/providers/supabase_provider.dart';
 import 'package:petra_erp/services/auth_service.dart';
 import 'package:petra_erp/services/customer_service.dart';
@@ -36,12 +38,16 @@ class FakeAuthService implements AuthService {
   Future<void> signOut() async {}
 
   @override
+  Future<AuthResponse> signInWithSession({required String refreshToken}) async =>
+      throw UnimplementedError();
+
+  @override
   Future<void> resetPasswordForEmail(String email) async {}
 }
 
 class FakeCustomerService implements CustomerService {
   @override
-  Future<List<Customer>> getCustomers() async => [];
+  Future<List<Customer>> getCustomers({int? offset, int? limit}) async => [];
   @override
   Future<Customer> createCustomer(Customer customer) async => customer;
   @override
@@ -56,7 +62,7 @@ class FakeCustomerService implements CustomerService {
 
 class FakeProductService implements ProductService {
   @override
-  Future<List<Product>> getProducts() async => [];
+  Future<List<Product>> getProducts({int? offset, int? limit}) async => [];
   @override
   Future<Product> createProduct(Product product) async => product;
   @override
@@ -118,9 +124,9 @@ class FakeCompanyService implements CompanyService {
 
 class FakeServiceOrderService implements ServiceOrderService {
   @override
-  Future<List<ServiceOrder>> getServiceOrders() async => [];
+  Future<List<ServiceOrder>> getServiceOrders({int? offset, int? limit}) async => [];
   @override
-  Stream<List<ServiceOrder>> streamServiceOrders() => const Stream.empty();
+  Stream<List<Map<String, dynamic>>> streamServiceOrders() => const Stream.empty();
   @override
   Future<ServiceOrder> createServiceOrder(ServiceOrder order) async => order;
   @override
@@ -165,6 +171,21 @@ class MockAuthNotifier extends AuthNotifier {
 }
 
 void main() {
+  setUpAll(() async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    // SharedPreferences não tem implementação nativa no ambiente de teste;
+    // o storage de sessão do gotrue depende dele. Mock com valores vazios.
+    SharedPreferences.setMockInitialValues({});
+    // Inicializa um Supabase dummy (sem conexão real) para que o
+    // supabaseClientProvider possa resolver Supabase.instance.client durante o
+    // smoke test. Os serviços usados pela UI são fakeados via overrides; este
+    // init só satisfaz providers que tocam o cliente no boot.
+    await Supabase.initialize(
+      url: 'http://localhost:54321',
+      anonKey: 'test-anon-key',
+    );
+  });
+
   testWidgets('Dashboard Kanban screen smoke test', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1.0;
@@ -187,6 +208,9 @@ void main() {
           profileServiceProvider.overrideWithValue(FakeProfileService()),
           serviceOrderServiceProvider.overrideWithValue(FakeServiceOrderService()),
           companyServiceProvider.overrideWithValue(FakeCompanyService()),
+          // pendingAdminActionsProvider acessa o SupabaseClient direto (sem
+          // serviço fakeável) e bate na rede no boot da HomeScreen para admins.
+          pendingAdminActionsProvider.overrideWith((ref) async => const []),
         ],
         child: const PetraApp(),
       ),

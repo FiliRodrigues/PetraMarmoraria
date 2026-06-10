@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -18,7 +19,7 @@ Future<Uint8List?> fetchNetworkImage(String url) async {
 }
 
 /// Generates a highly professional A4 PDF document for the given [order].
-/// Standard Helvetica font is used throughout the layout.
+/// Uses Plus Jakarta Sans (embedded) for full Unicode/Portuguese support.
 /// Margins are set to 40px (points).
 Future<Uint8List> generateServiceOrderPdf({
   required ServiceOrder order,
@@ -30,14 +31,21 @@ Future<Uint8List> generateServiceOrderPdf({
   Uint8List? drawingBytes,
   bool drawingIsPdf = false,
   String printMode = 'admin',
+  Uint8List? preloadedFontBytes,
+  Uint8List? preloadedFontBoldBytes,
 }) async {
   final pdf = pw.Document();
 
   debugPrint('[PDF] Iniciando geração PDF, printMode=$printMode, hasDrawing=${drawingBytes != null}');
 
-  // Typography (Helvetica)
-  final fontRegular = pw.Font.helvetica();
-  final fontBold = pw.Font.helveticaBold();
+  final fontData = preloadedFontBytes != null
+      ? preloadedFontBytes.buffer.asByteData()
+      : await rootBundle.load('assets/fonts/PlusJakartaSans-Regular.ttf');
+  final fontBoldData = preloadedFontBoldBytes != null
+      ? preloadedFontBoldBytes.buffer.asByteData()
+      : await rootBundle.load('assets/fonts/PlusJakartaSans-Bold.ttf');
+  final fontRegular = pw.Font.ttf(fontData);
+  final fontBold = pw.Font.ttf(fontBoldData);
 
   // Branding colors
   final primaryColor = PdfColor.fromInt(0xFF1A1A1A);       // Charcoal/Black
@@ -664,4 +672,57 @@ Future<Uint8List> generateServiceOrderPdf({
   final result = await pdf.save();
   debugPrint('[PDF] PDF gerado com sucesso, ${result.length} bytes');
   return result;
+}
+
+Future<Uint8List> _buildPdfInIsolate(Map<String, dynamic> args) async {
+  final fontData = args['fontBytes'] as Uint8List;
+  final fontBoldData = args['fontBoldBytes'] as Uint8List;
+
+  return await generateServiceOrderPdf(
+    order: ServiceOrder.fromMap(args['order']),
+    customer: args['customer'] != null ? Customer.fromMap(args['customer']) : null,
+    assignments: (args['assignments'] as List).map((e) => OrderAssignment.fromMap(e)).toList(),
+    history: (args['history'] as List).map((e) => StatusHistory.fromMap(e)).toList(),
+    profiles: (args['profiles'] as List).map((e) => Profile.fromMap(e)).toList(),
+    company: args['company'] != null ? CompanyInfo.fromMap(args['company']) : null,
+    drawingBytes: args['drawingBytes'] as Uint8List?,
+    drawingIsPdf: args['drawingIsPdf'] as bool,
+    printMode: args['printMode'] as String,
+    preloadedFontBytes: fontData,
+    preloadedFontBoldBytes: fontBoldData,
+  );
+}
+
+Future<Uint8List> generateServiceOrderPdfIsolate({
+  required ServiceOrder order,
+  Customer? customer,
+  List<OrderAssignment> assignments = const [],
+  List<StatusHistory> history = const [],
+  List<Profile> profiles = const [],
+  CompanyInfo? company,
+  Uint8List? drawingBytes,
+  bool drawingIsPdf = false,
+  String printMode = 'admin',
+}) async {
+  final fontData = await rootBundle.load('assets/fonts/PlusJakartaSans-Regular.ttf');
+  final fontBoldData = await rootBundle.load('assets/fonts/PlusJakartaSans-Bold.ttf');
+
+  final args = <String, dynamic>{
+    'order': order.toMap(),
+    'assignments': assignments.map((e) => e.toMap()).toList(),
+    'history': history.map((e) => e.toMap()).toList(),
+    'profiles': profiles.map((e) => e.toMap()).toList(),
+    'drawingIsPdf': drawingIsPdf,
+    'printMode': printMode,
+    'fontBytes': fontData.buffer.asUint8List(),
+    'fontBoldBytes': fontBoldData.buffer.asUint8List(),
+  };
+  if (customer != null) args['customer'] = customer.toMap();
+  if (company != null) args['company'] = company.toMap();
+  if (drawingBytes != null) args['drawingBytes'] = drawingBytes;
+
+  if (kIsWeb) {
+    return await _buildPdfInIsolate(args);
+  }
+  return await compute(_buildPdfInIsolate, args);
 }

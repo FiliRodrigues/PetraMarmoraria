@@ -82,7 +82,7 @@ final generatedPdfProvider = FutureProvider.family<Uint8List, ({String id, Strin
 
   debugPrint('[PrintScreen] Gerando PDF para OS ${data.order.formattedNumber}, modo=${args.mode}');
 
-  return await generateServiceOrderPdf(
+  return await generateServiceOrderPdfIsolate(
     order: data.order,
     customer: data.customer,
     assignments: data.assignments,

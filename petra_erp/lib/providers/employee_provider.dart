@@ -79,7 +79,11 @@ class EmployeeNotifier extends StateNotifier<AsyncValue<List<Profile>>> {
   }
 
   Future<void> resetEmployeePassword(String userId, String password) async {
-    await _service.resetEmployeePassword(userId: userId, password: password);
+    try {
+      await _service.resetEmployeePassword(userId: userId, password: password);
+    } catch (e) {
+      rethrow;
+    }
   }
 }
 

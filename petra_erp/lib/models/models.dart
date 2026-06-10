@@ -6,4 +6,7 @@ export 'status_history.dart';
 export 'order_assignment.dart';
 export 'stock_movement.dart';
 export 'payment.dart';
+export 'financial_category.dart';
+export 'expense.dart';
 export 'company_info.dart';
+export 'supplier.dart';

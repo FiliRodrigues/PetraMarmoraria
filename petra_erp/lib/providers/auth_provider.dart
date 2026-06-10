@@ -36,7 +36,18 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
       state = AsyncValue.data(response.user);
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
-      rethrow;
+    }
+  }
+
+  Future<void> loginWithSession(String refreshToken) async {
+    state = const AsyncValue.loading();
+    try {
+      final response = await _authService.signInWithSession(
+        refreshToken: refreshToken,
+      );
+      state = AsyncValue.data(response.user);
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
     }
   }
 
@@ -47,15 +58,16 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
       state = const AsyncValue.data(null);
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
-      rethrow;
     }
   }
 
   Future<void> resetPassword(String email) async {
+    state = const AsyncValue.loading();
     try {
       await _authService.resetPasswordForEmail(email);
-    } catch (e) {
-      rethrow;
+      state = const AsyncValue.data(null);
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
     }
   }
 

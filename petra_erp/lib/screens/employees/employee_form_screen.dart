@@ -1,7 +1,9 @@
+import 'dart:math' as dart_math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:uuid/uuid.dart';
 import '../../core/constants/roles.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
@@ -114,9 +116,8 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
         final phone = _phoneController.text.trim();
 
         if (_isPinAccess) {
-          final uuidPart = DateTime.now().millisecondsSinceEpoch.toRadixString(
-            36,
-          );
+          // Usa uuid v4 em vez de timestamp para evitar colisão
+          final uuidPart = const Uuid().v4().split('-').first;
           await ref
               .read(employeeProvider.notifier)
               .createEmployee(
@@ -192,11 +193,11 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
   }
 
   Future<void> _resetPassword() async {
-    final formKey = GlobalKey<FormState>();
     final passCtrl = TextEditingController();
     final confirmCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
 
-    final ok = await showDialog<bool>(
+    final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Redefinir senha'),
@@ -209,7 +210,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                 controller: passCtrl,
                 obscureText: true,
                 decoration: const InputDecoration(
-                  labelText: 'Nova senha *',
+                  labelText: 'Nova senha (mín. 6 caracteres)',
                   prefixIcon: Icon(Icons.lock),
                 ),
                 validator: Validators.validatePassword,
@@ -219,25 +220,23 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                 controller: confirmCtrl,
                 obscureText: true,
                 decoration: const InputDecoration(
-                  labelText: 'Confirmar senha *',
+                  labelText: 'Confirmar senha',
                   prefixIcon: Icon(Icons.lock),
                 ),
-                validator: (val) => val != passCtrl.text
-                    ? 'As senhas não coincidem'
-                    : null,
+                validator: (val) => val != passCtrl.text ? 'Senhas não conferem' : null,
               ),
             ],
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () {
               if (formKey.currentState!.validate()) {
-                Navigator.of(ctx).pop(true);
+                Navigator.pop(ctx, passCtrl.text.trim());
               }
             },
             child: const Text('Redefinir'),
@@ -246,15 +245,16 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
       ),
     );
 
-    if (ok == true && widget.id != null) {
-      try {
-        await ref
-            .read(employeeProvider.notifier)
-            .resetEmployeePassword(widget.id!, passCtrl.text.trim());
-        if (mounted) AppSnackbar.success(context, 'Senha redefinida.');
-      } catch (e) {
-        if (mounted) AppSnackbar.error(context, friendlyError(e));
-      }
+    if (result == null || result.isEmpty) return;
+    if (widget.id == null) return;
+
+    try {
+      await ref
+          .read(employeeProvider.notifier)
+          .resetEmployeePassword(widget.id!, result);
+      if (mounted) AppSnackbar.success(context, 'Senha redefinida com sucesso.');
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, 'Erro: ${e.toString().replaceAll("Exception: ", "")}');
     }
 
     passCtrl.dispose();
@@ -288,13 +288,10 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
   }
 
   String _generatePassword() {
-    final rng = List.generate(16, (i) {
-      const chars =
-          'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#\$%^';
-      final ms = DateTime.now().microsecondsSinceEpoch;
-      return chars[(ms + i) % chars.length];
-    });
-    return rng.join();
+    final rng = dart_math.Random.secure();
+    const chars =
+        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#\$%^';
+    return List.generate(16, (_) => chars[rng.nextInt(chars.length)]).join();
   }
 
   @override

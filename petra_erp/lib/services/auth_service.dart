@@ -31,6 +31,16 @@ class AuthService {
     }
   }
 
+  Future<AuthResponse> signInWithSession({
+    required String refreshToken,
+  }) async {
+    try {
+      return await _client.auth.setSession(refreshToken);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<void> resetPasswordForEmail(String email) async {
     try {
       await _client.auth.resetPasswordForEmail(email);

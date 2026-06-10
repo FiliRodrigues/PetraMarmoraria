@@ -6,12 +6,14 @@ class ProductService {
 
   ProductService(this._client);
 
-  Future<List<Product>> getProducts() async {
+  Future<List<Product>> getProducts({int? offset, int? limit}) async {
     try {
-      final response = await _client
+      dynamic query = _client
           .from('products')
           .select()
           .order('name', ascending: true);
+      if (offset != null && limit != null) query = query.range(offset, offset + limit - 1);
+      final response = await query;
       return (response as List).map((e) => Product.fromMap(e)).toList();
     } catch (e) {
       rethrow;

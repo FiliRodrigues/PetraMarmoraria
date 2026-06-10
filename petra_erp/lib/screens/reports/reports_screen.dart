@@ -928,7 +928,7 @@ class _PeriodSelector extends StatelessWidget {
         onSelected: (_) => onChanged(p),
         labelStyle: AppTheme.jakarta(
           fontSize: 12,
-          fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+          fontWeight: active ? FontWeight.w700 : FontWeight.w400,
           color: active ? Colors.white : AppColors.textSecondary,
         ),
         selectedColor: AppColors.accent,

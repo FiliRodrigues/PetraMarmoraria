@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/supabase_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   final String perfil;
@@ -69,27 +70,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
-    try {
-      if (_rememberBiometric && _biometricAvailable) {
-        // Persiste antes do login para não correr com o redirect do go_router.
-        await ref.read(biometricAuthServiceProvider).enable(email, password);
-      }
-      await ref.read(authProvider.notifier).login(email, password);
-      // GoRouter redirect logic in app.dart will automatically navigate to '/'
-    } catch (e) {
-      if (_rememberBiometric && _biometricAvailable) {
-        await ref.read(biometricAuthServiceProvider).disable();
-      }
-      if (!mounted) return;
+    await ref.read(authProvider.notifier).login(email, password);
+
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (!mounted) return;
+
+    final authState = ref.read(authProvider);
+    if (authState.hasError) {
+      final msg = authState.error.toString().replaceAll('Exception: ', '');
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = msg.contains('Invalid login credentials')
+            ? 'E-mail ou senha inválidos.'
+            : msg;
+        _isLoading = false;
       });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+    } else {
+      if (_rememberBiometric && _biometricAvailable) {
+        try {
+          final session = ref.read(supabaseClientProvider).auth.currentSession;
+          if (session != null && session.refreshToken != null) {
+            await ref.read(biometricAuthServiceProvider).saveSession(
+              session.accessToken,
+              session.refreshToken!,
+            );
+          }
+      } catch (e) { debugPrint('Biometria save error: $e'); }
       }
+      setState(() => _isLoading = false);
     }
   }
 
@@ -100,26 +108,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      final creds = await ref
+      final session = await ref
           .read(biometricAuthServiceProvider)
-          .authenticateAndGetCredentials();
-      if (creds == null) {
+          .authenticateAndGetSession();
+      if (session == null) {
         if (mounted) setState(() => _isLoading = false);
         return;
       }
-      await ref.read(authProvider.notifier).login(creds.email, creds.password);
+      await ref.read(authProvider.notifier).loginWithSession(
+        session.refreshToken,
+      );
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
+      return;
     }
+
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (!mounted) return;
+
+    final authState = ref.read(authProvider);
+    if (authState.hasError) {
+      final msg = authState.error.toString().replaceAll('Exception: ', '');
+      setState(() {
+        _errorMessage = msg.contains('Invalid login credentials')
+            ? 'Credenciais biométricas inválidas.'
+            : msg;
+        _isLoading = false;
+      });
+      return;
+    }
+
+    setState(() => _isLoading = false);
   }
 
   @override

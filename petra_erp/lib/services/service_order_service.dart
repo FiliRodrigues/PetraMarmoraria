@@ -14,12 +14,14 @@ class ServiceOrderService {
       '*, customers(name), creator:profiles!service_orders_created_by_fkey(name)';
 
   // Fetch all OS, including the client join
-  Future<List<ServiceOrder>> getServiceOrders() async {
+  Future<List<ServiceOrder>> getServiceOrders({int? offset, int? limit}) async {
     try {
-      final response = await _client
+      dynamic query = _client
           .from('service_orders')
           .select(_selectWithJoins)
           .order('queue_position', ascending: true);
+      if (offset != null && limit != null) query = query.range(offset, offset + limit - 1);
+      final response = await query;
       return (response as List).map((e) {
         final customerName = e['customers'] != null ? e['customers']['name'] as String? : null;
         return ServiceOrder.fromMap(e, customerName: customerName);
@@ -29,12 +31,13 @@ class ServiceOrderService {
     }
   }
 
-  Stream<List<ServiceOrder>> streamServiceOrders() {
+  /// Escuta mudanças na tabela service_orders. O provider usa isso só como
+  /// gatilho para recarregar os dados com join via [getServiceOrders].
+  Stream<List<Map<String, dynamic>>> streamServiceOrders() {
     return _client
         .from('service_orders')
         .stream(primaryKey: ['id'])
-        .order('queue_position', ascending: true)
-        .map((events) => events.map((e) => ServiceOrder.fromMap(e)).toList());
+        .order('queue_position', ascending: true);
   }
 
   Future<ServiceOrder> getServiceOrderById(String id) async {
@@ -142,28 +145,13 @@ class ServiceOrderService {
         }
       }
 
-      await _client.from('service_orders').update({
-        'status': newStatus,
-        'status_changed_at': DateTime.now().toIso8601String(),
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', orderId);
-
-      await _client.from('status_history').insert({
-        'order_id': orderId,
-        'from_status': currentStatus,
-        'to_status': newStatus,
-        'changed_by': changedById,
-        'notes': notes,
+      await _client.rpc('move_service_order_status', params: {
+        'p_order_id': orderId,
+        'p_new_status': newStatus,
+        'p_changed_by': changedById,
+        'p_notes': notes,
+        'p_employee_id': employeeId,
       });
-
-      if (employeeId != null && OSStatus.requiresAssignment(newStatus)) {
-        await _client.from('order_assignments').insert({
-          'order_id': orderId,
-          'stage': newStatus,
-          'employee_id': employeeId,
-          'notes': notes,
-        });
-      }
     } catch (e) {
       rethrow;
     }

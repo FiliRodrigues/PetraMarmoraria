@@ -185,7 +185,7 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.surfaceElevated,
         shape: const StadiumBorder(side: BorderSide(color: AppColors.border)),
-        labelStyle: jakarta(fontSize: 12, fontWeight: FontWeight.w500),
+        labelStyle: jakarta(fontSize: 12, fontWeight: FontWeight.w400),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       ),
       dividerTheme: const DividerThemeData(

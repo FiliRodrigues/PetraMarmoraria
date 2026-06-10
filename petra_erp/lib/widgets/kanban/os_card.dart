@@ -121,7 +121,7 @@ class _OSCardState extends ConsumerState<OSCard> {
                             o.material!,
                             style: AppTheme.jakarta(
                               fontSize: 11.5,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w400,
                               color: AppColors.textMuted,
                             ),
                             maxLines: 1,
@@ -323,7 +323,7 @@ class _ContextMenu extends ConsumerWidget {
             newStatus: OSStatus.entregue,
             changedById: user.id,
           );
-    } catch (_) {}
+    } catch (e) { debugPrint('moveOrder error: $e'); }
   }
 
   PopupMenuItem<String> _menuItem(String v, IconData icon, String label) =>

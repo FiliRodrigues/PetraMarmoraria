@@ -10,3 +10,6 @@ export 'company_service.dart';
 export 'storage_service.dart';
 export 'worker_auth_service.dart';
 export 'biometric_auth_service.dart';
+export 'financial_category_service.dart';
+export 'expense_service.dart';
+export 'supplier_service.dart';

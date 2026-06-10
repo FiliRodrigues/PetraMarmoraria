@@ -20,3 +20,10 @@ export 'kanban/kanban_board.dart';
 export 'kanban/kanban_column.dart';
 export 'kanban/os_card.dart';
 export 'kanban/status_transition_dialog.dart';
+
+// Finance Widgets
+export 'finance/finance_kpi_card.dart';
+export 'finance/payment_tile.dart';
+export 'finance/expense_tile.dart';
+export 'finance/register_expense_dialog.dart';
+export 'finance/supplier_form_dialog.dart';

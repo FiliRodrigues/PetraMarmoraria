@@ -70,7 +70,7 @@ class _TabletShellState extends ConsumerState<_TabletShell> {
     String location = '/';
     try {
       location = GoRouterState.of(context).matchedLocation;
-    } catch (_) {}
+    } catch (_) { /* GoRouterState.of pode falhar antes do primeiro build */ }
 
     final selected = destinations.indexWhere(
       (d) => isRouteActive(location, d.route),
@@ -103,7 +103,7 @@ class _TabletShellState extends ConsumerState<_TabletShell> {
             unselectedLabelTextStyle: AppTheme.jakarta(
               color: Colors.white.withValues(alpha: 0.7),
               fontSize: 11,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w400,
             ),
             onDestinationSelected: (i) => context.go(destinations[i].route),
             leading: Padding(
@@ -156,7 +156,7 @@ class _MobileShellState extends ConsumerState<_MobileShell> {
     String location = '/';
     try {
       location = GoRouterState.of(context).matchedLocation;
-    } catch (_) {}
+    } catch (_) { /* GoRouterState.of pode falhar antes do primeiro build */ }
 
     final activeIndex = destinations.indexWhere(
       (d) => isRouteActive(location, d.route),

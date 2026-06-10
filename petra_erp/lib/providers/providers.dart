@@ -6,4 +6,8 @@ export 'product_provider.dart';
 export 'employee_provider.dart';
 export 'stock_provider.dart';
 export 'payment_provider.dart';
+export 'expense_provider.dart';
+export 'supplier_provider.dart';
+export 'cash_flow_provider.dart';
 export 'company_provider.dart';
+export 'financial_category_provider.dart';
