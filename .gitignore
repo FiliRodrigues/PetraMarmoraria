@@ -103,3 +103,9 @@ skills/
 # Artefatos de deploy (gerados — nao versionar)
 deploy/app/
 deploy/download/
+
+# ============ Artefatos de design / prototipo (nao versionar) ============
+design_comparativo_reui.html
+sketches/
+visual-companion/
+petra_erp/docs/
